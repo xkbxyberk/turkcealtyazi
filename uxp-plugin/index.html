@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- 1. Header Bar -->
+  <header class="header-bar">
+    <div class="header-left">
+      <span class="header-title">TürkçeAltyazı</span>
+      <span class="header-version">v1.0</span>
+    </div>
+    <div class="status-badge" id="statusBadge">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-label" id="statusLabel">Kontrol ediliyor</span>
+    </div>
+  </header>
+
+  <!-- 2. Sequence Bilgi Alanı -->
+  <section class="sequence-section">
+    <div class="sequence-content" id="sequenceContent">
+      <div class="sequence-eyebrow">Aktif Sequence</div>
+      <div class="sequence-name" id="sequenceName" title=""></div>
+      <div class="sequence-meta" id="sequenceMeta"></div>
+    </div>
+    <div class="sequence-empty" id="sequenceEmpty">
+      Bir sequence açın
+    </div>
+  </section>
+
+  <!-- 3. Ana Buton Alanı -->
+  <section class="action-section" id="actionSection">
+    <button class="btn-generate" id="btnGenerate" disabled>Altyazı Oluştur</button>
+    <div class="action-hint">Türkçe · large-v3 · Core ML</div>
+  </section>
+
+  <!-- 4. İlerleme Alanı -->
+  <section class="progress-section" id="progressSection">
+    <div class="progress-label" id="progressLabel">Hazırlanıyor...</div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-footer">
+      <span class="progress-percent" id="progressPercent">0%</span>
+      <span class="progress-timer" id="progressTimer"></span>
+    </div>
+  </section>
+
+  <!-- 5. Sonuç / Mesaj Alanı -->
+  <div class="result-card" id="resultCard">
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-detail" id="resultDetail"></div>
+    <div class="result-file" id="resultFile"></div>
+  </div>
+
+  <!-- 6. Sunucu Yardım Alanı -->
+  <section class="server-help" id="serverHelpSection">
+    <div class="server-help-title">Sunucu başlatılmadı</div>
+    <div class="server-help-desc">Terminal'de şu komutu çalıştırın:</div>
+    <div class="command-block">
+      <code id="serverCommand">~/Developer/turkcealtyazi/companion-app/start-server.sh</code>
+    </div>
+    <div class="server-help-actions">
+      <button class="btn-secondary" id="btnLaunchServer">Sunucuyu Başlat</button>
+      <button class="btn-ghost" id="btnCopyCommand">Komutu Kopyala</button>
+    </div>
+  </section>
+
+  <!-- 7. Footer -->
+  <footer class="footer-bar">
+    <span>localhost:8787</span>
+    <span>large-v3</span>
+  </footer>
+
+  <script src="srt.js"></script>
+  <script src="api.js"></script>
+  <script src="index.js"></script>
+</body>
+</html>
