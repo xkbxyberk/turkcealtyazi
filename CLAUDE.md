@@ -63,7 +63,7 @@ turkcealtyazi/
 - **Neden UXP:** Adobe'un yeni standardı, CEP sunset sürecinde
 - **Neden SRT import:** UXP Caption API henüz yok (Adobe doğruladı)
 - **Endpoint:** POST http://localhost:8787/inference (FormData: file, language=tr, response_format=verbose_json)
-- **word_timestamps:** KULLANILMAZ — sub-word token sorunu yaratır, segment bazlı timestamps kullanılıyor
+- **word_timestamps:** Klasik modda KULLANILMAZ (sub-word token sorunu). Word-by-Word modda aktif — sub-word token'lar extractWordTimestamps() ile birleştirilir
 - **--convert bayrağı:** ZORUNLU — video dosyası direkt gönderilince FFmpeg dönüşümü için
 - **--beam-size 1:** Greedy decoding — sessiz kısımlarda halüsinasyon azaltır (varsayılan beam=5 uydurma metin üretir)
 - **initial_prompt:** UI'dan isteğe bağlı, özel isim/terim zorlama (max 224 token, ~900 karakter). FormData'da `prompt` alanı olarak gönderilir
@@ -284,6 +284,15 @@ Hata:  >20 CPS (kırmızı, blok bölünmeli)
 - [x] Virtual scroll: 100+ altyazılı listelerde sadece görünen kartlar render edilir
 - [x] documentFragment kullanımı ile DOM batch render optimizasyonu
 - [x] Scroll pozisyonu koruması ve requestAnimationFrame throttling
+
+### ✅ Faz 4.6 — Kelime Kelime (Word-by-Word) Modu (Tamamlandı)
+- [x] Mod seçim UI'ı: Klasik Altyazı / Kelime Kelime kartları (oluşturma sayfasında)
+- [x] API: word_timestamps=true parametresi (word-by-word modda)
+- [x] extractWordTimestamps(): Whisper word-level timestamps çıkarma + sub-word token birleştirme
+- [x] generateWordByWordSRT(): Her kelime ayrı SRT entry, milisaniye hassasiyetinde senkron
+- [x] Halüsinasyon temizleme (ardışık tekrar kelimeler)
+- [x] Dosya adı ayrımı: _altyazi.srt (klasik) / _kelime.srt (word-by-word)
+- [x] Düzenleme paneli ile tam uyumlu (aynı SRT formatı)
 
 ### ⏳ Faz 5 — Animasyon (Araştırma Aşaması)
 Kelime kelime animasyon için potansiyel yaklaşımlar:

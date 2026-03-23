@@ -47,6 +47,7 @@ let cachedProject = null;
 let processStartTime = null;
 let timerInterval = null;
 let lastSrtPath = null; // Son oluşturulan SRT dosya yolu
+let selectedMode = 'classic'; // 'classic' | 'word-by-word'
 
 // =====================================================================
 //  Sayfa Geçişi
@@ -533,7 +534,8 @@ async function handleGenerate() {
     // 2. Transkripsiyon
     showProgress("Sunucuya gönderiliyor...", 20);
     const initialPrompt = document.getElementById('initialPrompt')?.value?.trim() || '';
-    const result = await transcribeAudio(audioBlob, fileName, initialPrompt);
+    const useWordTimestamps = selectedMode === 'word-by-word';
+    const result = await transcribeAudio(audioBlob, fileName, initialPrompt, useWordTimestamps);
 
 
     showProgress("Transkripsiyon yapılıyor (VAD + Core ML)...", 40);
@@ -545,7 +547,12 @@ async function handleGenerate() {
     if (segments.length === 0) throw new Error("Transkripsiyon sonucu boş döndü.");
 
     showProgress("SRT segmentleri oluşturuluyor...", 75);
-    const srtContent = generateSRT(segments);
+    let srtContent;
+    if (selectedMode === 'word-by-word') {
+      srtContent = generateWordByWordSRT(result);
+    } else {
+      srtContent = generateSRT(segments);
+    }
     if (!srtContent) throw new Error("SRT içeriği oluşturulamadı.");
 
     // 4. SRT dosyasını otomatik kaydet (video dosya adıyla)
@@ -553,7 +560,8 @@ async function handleGenerate() {
     const mediaBaseName = fileName
       ? fileName.replace(/\.[^.]+$/, "")
       : seqName;
-    const srtFileName = mediaBaseName.replace(/[^a-zA-Z0-9_\-ğüşıöçĞÜŞİÖÇ ]/g, "") + "_altyazi.srt";
+    const modeSuffix = selectedMode === 'word-by-word' ? '_kelime' : '_altyazi';
+    const srtFileName = mediaBaseName.replace(/[^a-zA-Z0-9_\-ğüşıöçĞÜŞİÖÇ ]/g, "") + modeSuffix + ".srt";
 
     const project = await getProject();
     const projectDir = project.path.substring(0, project.path.lastIndexOf("/"));
@@ -679,6 +687,19 @@ async function panelDestroy() {
 // =====================================================================
 
 btnGenerate.addEventListener("click", handleGenerate);
+
+// Mod seçim kartları
+document.getElementById('modeClassic').addEventListener('click', () => {
+  selectedMode = 'classic';
+  document.getElementById('modeClassic').classList.add('selected');
+  document.getElementById('modeWordByWord').classList.remove('selected');
+});
+
+document.getElementById('modeWordByWord').addEventListener('click', () => {
+  selectedMode = 'word-by-word';
+  document.getElementById('modeWordByWord').classList.add('selected');
+  document.getElementById('modeClassic').classList.remove('selected');
+});
 
 // Sayfa geçiş butonları
 document.getElementById('btnBackToCreate').addEventListener('click', () => {

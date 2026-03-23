@@ -670,6 +670,120 @@ function generateSRT(segments) {
   return lines.join("\n");
 }
 
+// ─── Word-by-Word SRT Üretimi ───────────────────────────────────────────────
+
+/**
+ * Whisper verbose_json yanıtından word-level timestamps çıkarır.
+ * Sub-word token'ları (boşluksuz başlayan) önceki kelimeyle birleştirir.
+ * @param {Object} result - whisper-server verbose_json yanıtı
+ * @returns {Array<{text: string, start: number, end: number}>}
+ */
+function extractWordTimestamps(result) {
+  const words = [];
+  const segments = result.transcription || result.segments || [];
+
+  for (const seg of segments) {
+    // whisper.cpp verbose_json word_timestamps yanıtı:
+    // segment.words = [{word: " Merhaba", start: 0.5, end: 0.9, probability: 0.98}, ...]
+    const segWords = seg.words || [];
+
+    if (segWords.length > 0) {
+      // Word-level timestamps mevcut — kullan
+      for (const w of segWords) {
+        const text = (w.word || w.text || '').trim();
+        if (!text) continue;
+
+        const wStart = w.start != null ? w.start :
+                       (w.t0 != null ? w.t0 / 100 : 0);
+        const wEnd = w.end != null ? w.end :
+                     (w.t1 != null ? w.t1 / 100 : wStart + 0.1);
+
+        // Sub-word token kontrolü: boşlukla başlamayan token öncekiyle birleş
+        const rawWord = w.word || w.text || '';
+        if (words.length > 0 && rawWord.length > 0 && rawWord[0] !== ' ' && !/^[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(rawWord[0]) === false) {
+          // Eğer önceki kelimenin sonu ile bu kelimenin başı bitişikse birleştir
+          if (rawWord[0] !== ' ' && words.length > 0) {
+            const prev = words[words.length - 1];
+            // Zaman farkı çok küçükse (50ms altı) sub-word token olabilir
+            if (wStart - prev.end < 0.05) {
+              prev.text = prev.text + text;
+              prev.end = wEnd;
+              continue;
+            }
+          }
+        }
+
+        words.push({ text, start: wStart, end: wEnd });
+      }
+    } else {
+      // Word-level timestamps yok — segment bazlı fallback (eşit dağıtım)
+      const segStart = normalizeTime(seg.t0, seg.start);
+      const segEnd = normalizeTime(seg.t1, seg.end);
+      const segText = (seg.text || '').trim();
+      if (!segText) continue;
+
+      const rawWords = segText.split(/\s+/).filter(Boolean);
+      const segDur = segEnd - segStart;
+      const wordDur = rawWords.length > 0 ? segDur / rawWords.length : segDur;
+
+      for (let i = 0; i < rawWords.length; i++) {
+        words.push({
+          text: rawWords[i],
+          start: segStart + i * wordDur,
+          end: segStart + (i + 1) * wordDur,
+        });
+      }
+    }
+  }
+
+  return words;
+}
+
+/**
+ * Word-by-word SRT üretir — her kelime ayrı bir SRT entry.
+ * Milisaniye hassasiyetinde ses-altyazı senkronizasyonu.
+ * @param {Object} result - whisper-server verbose_json yanıtı (word_timestamps=true)
+ * @returns {string} SRT formatında metin
+ */
+function generateWordByWordSRT(result) {
+  const words = extractWordTimestamps(result);
+  if (words.length === 0) return '';
+
+  // Halüsinasyon temizleme: ardışık aynı kelime tekrarlarını sil
+  const cleaned = [];
+  let repeatCount = 0;
+  for (let i = 0; i < words.length; i++) {
+    const curr = words[i].text.toLowerCase();
+    const prev = i > 0 ? words[i - 1].text.toLowerCase() : '';
+    if (curr === prev) {
+      repeatCount++;
+      if (repeatCount >= 2) continue; // 3+ ardışık aynı kelime → sil
+    } else {
+      repeatCount = 0;
+    }
+    cleaned.push(words[i]);
+  }
+
+  // Minimum süre kontrolü: çok kısa kelimeleri genişlet (min 100ms)
+  for (const w of cleaned) {
+    if (w.end - w.start < 0.1) {
+      w.end = w.start + 0.1;
+    }
+  }
+
+  // SRT formatına dönüştür
+  const lines = [];
+  for (let i = 0; i < cleaned.length; i++) {
+    const w = cleaned[i];
+    lines.push(String(i + 1));
+    lines.push(formatTimestamp(w.start) + ' --> ' + formatTimestamp(w.end));
+    lines.push(w.text);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
 // ─── SRT Parse / Write (Faz 3) ──────────────────────────────────────────────
 
 /**

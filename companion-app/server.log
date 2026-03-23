@@ -572,3 +572,293 @@ whisper_vad: vad_segment_info: orig_start: 132.99, orig_end: 139.49, vad_start: 
 whisper_vad: vad_segment_info: orig_start: 139.65, orig_end: 139.97, vad_start: 136.97, vad_end: 137.29
 whisper_vad: Created time mapping table with 59 points
 whisper_vad: Reduced audio from 2239488 to 2196607 samples (1.9% reduction)
+ffmpeg version 8.0.1 Copyright (c) 2000-2025 the FFmpeg developers
+  built with Apple clang version 17.0.0 (clang-1700.6.3.2)
+  configuration: --prefix=/opt/homebrew/Cellar/ffmpeg/8.0.1_4 --enable-shared --enable-pthreads --enable-version3 --cc=clang --host-cflags= --host-ldflags= --enable-ffplay --enable-gpl --enable-libsvtav1 --enable-libopus --enable-libx264 --enable-libmp3lame --enable-libdav1d --enable-libvpx --enable-libx265 --enable-openssl --enable-videotoolbox --enable-audiotoolbox --enable-neon
+  libavutil      60.  8.100 / 60.  8.100
+  libavcodec     62. 11.100 / 62. 11.100
+  libavformat    62.  3.100 / 62.  3.100
+  libavdevice    62.  1.100 / 62.  1.100
+  libavfilter    11.  4.100 / 11.  4.100
+  libswscale      9.  1.100 /  9.  1.100
+  libswresample   6.  1.100 /  6.  1.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from './whisper-server-20260324-004805-883344551.wav':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 1
+    compatible_brands: isomiso4
+    creation_time   : 2026-03-23T10:06:49.000000Z
+  Duration: 00:02:19.97, start: 0.000000, bitrate: 1069 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 1280x590, 933 kb/s, SAR 1:1 DAR 128:59, 25.03 fps, 59.94 tbr, 9000k tbn (default)
+    Metadata:
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 128 kb/s (default)
+    Metadata:
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+Stream mapping:
+  Stream #0:1 -> #0:0 (aac (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to './whisper-server-20260324-004805-883344551.wav_temp.wav':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 1
+    compatible_brands: isomiso4
+    ISFT            : Lavf62.3.100
+  Stream #0:0(und): Audio: pcm_s16le ([1][0][0][0] / 0x0001), 16000 Hz, mono, s16, 256 kb/s (default)
+    Metadata:
+      encoder         : Lavc62.11.100 pcm_s16le
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+[out#0/wav @ 0xc78c50300] video:0KiB audio:4374KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.001741%
+size=    4374KiB time=00:02:19.96 bitrate= 256.0kbits/s speed=1.96e+03x elapsed=0:00:00.07    
+
+system_info: n_threads = 4 / 10 | WHISPER : COREML = 1 | OPENVINO = 0 | MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | SME = 1 | ACCELERATE = 1 | REPACK = 1 | 
+
+operator(): processing 'blob' (2239488 samples, 140.0 sec), 4 threads, 1 processors, lang = tr, task = transcribe, timestamps = 1 ...
+
+whisper_full: VAD is enabled, processing speech segments only
+whisper_vad: VAD is enabled, processing speech segments only
+whisper_vad_segments_from_samples: detecting speech timestamps in 2239488 samples
+whisper_vad_detect_speech: detecting speech in 2239488 samples
+whisper_vad_detect_speech: n_chunks: 4374
+whisper_vad_detect_speech: props size: 4374
+whisper_vad_detect_speech: vad time = 1221.38 ms processing 2239488 samples
+whisper_vad_segments_from_probs: detecting speech timestamps using 4374 probabilities
+whisper_vad_segments_from_probs: Merged 3 adjacent segments, now have 20 segments
+whisper_vad_segments_from_probs: Final speech segments after filtering: 20
+whisper_vad_segments_from_probs: VAD segment 0: start = 0.16, end = 7.58 (duration: 7.42)
+whisper_vad_segments_from_probs: VAD segment 1: start = 7.75, end = 9.41 (duration: 1.66)
+whisper_vad_segments_from_probs: VAD segment 2: start = 9.70, end = 16.16 (duration: 6.46)
+whisper_vad_segments_from_probs: VAD segment 3: start = 16.45, end = 24.67 (duration: 8.22)
+whisper_vad_segments_from_probs: VAD segment 4: start = 25.38, end = 55.77 (duration: 30.39)
+whisper_vad_segments_from_probs: VAD segment 5: start = 56.16, end = 58.85 (duration: 2.69)
+whisper_vad_segments_from_probs: VAD segment 6: start = 59.04, end = 60.09 (duration: 1.05)
+whisper_vad_segments_from_probs: VAD segment 7: start = 60.26, end = 73.57 (duration: 13.31)
+whisper_vad_segments_from_probs: VAD segment 8: start = 73.89, end = 75.45 (duration: 1.56)
+whisper_vad_segments_from_probs: VAD segment 9: start = 75.87, end = 89.50 (duration: 13.63)
+whisper_vad_segments_from_probs: VAD segment 10: start = 89.92, end = 104.93 (duration: 15.01)
+whisper_vad_segments_from_probs: VAD segment 11: start = 105.28, end = 105.98 (duration: 0.70)
+whisper_vad_segments_from_probs: VAD segment 12: start = 106.21, end = 113.05 (duration: 6.84)
+whisper_vad_segments_from_probs: VAD segment 13: start = 113.38, end = 115.52 (duration: 2.14)
+whisper_vad_segments_from_probs: VAD segment 14: start = 116.16, end = 117.82 (duration: 1.66)
+whisper_vad_segments_from_probs: VAD segment 15: start = 117.99, end = 129.92 (duration: 11.93)
+whisper_vad_segments_from_probs: VAD segment 16: start = 130.15, end = 130.49 (duration: 0.34)
+whisper_vad_segments_from_probs: VAD segment 17: start = 130.98, end = 132.64 (duration: 1.66)
+whisper_vad_segments_from_probs: VAD segment 18: start = 132.99, end = 139.49 (duration: 6.50)
+whisper_vad_segments_from_probs: VAD segment 19: start = 139.65, end = 139.97 (duration: 0.32)
+whisper_vad: detected 20 speech segments
+whisper_vad: Including segment 0: 0.16 - 7.68 (duration: 7.52)
+whisper_vad: Including segment 1: 7.75 - 9.51 (duration: 1.76)
+whisper_vad: Including segment 2: 9.70 - 16.26 (duration: 6.56)
+whisper_vad: Including segment 3: 16.45 - 24.77 (duration: 8.32)
+whisper_vad: Including segment 4: 25.38 - 55.87 (duration: 30.49)
+whisper_vad: Including segment 5: 56.16 - 58.95 (duration: 2.79)
+whisper_vad: Including segment 6: 59.04 - 60.19 (duration: 1.15)
+whisper_vad: Including segment 7: 60.26 - 73.67 (duration: 13.41)
+whisper_vad: Including segment 8: 73.89 - 75.55 (duration: 1.66)
+whisper_vad: Including segment 9: 75.87 - 89.60 (duration: 13.73)
+whisper_vad: Including segment 10: 89.92 - 105.03 (duration: 15.11)
+whisper_vad: Including segment 11: 105.28 - 106.08 (duration: 0.80)
+whisper_vad: Including segment 12: 106.21 - 113.15 (duration: 6.94)
+whisper_vad: Including segment 13: 113.38 - 115.62 (duration: 2.24)
+whisper_vad: Including segment 14: 116.16 - 117.92 (duration: 1.76)
+whisper_vad: Including segment 15: 117.99 - 130.02 (duration: 12.03)
+whisper_vad: Including segment 16: 130.15 - 130.59 (duration: 0.44)
+whisper_vad: Including segment 17: 130.98 - 132.74 (duration: 1.76)
+whisper_vad: Including segment 18: 132.99 - 139.59 (duration: 6.60)
+whisper_vad: Including segment 19: 139.65 - 139.97 (duration: 0.32)
+whisper_vad: total duration of speech segments: 135.39 seconds
+whisper_vad: vad_segment_info: orig_start: 0.16, orig_end: 7.58, vad_start: 0.00, vad_end: 7.42
+whisper_vad: vad_segment_info: orig_start: 7.75, orig_end: 9.41, vad_start: 7.62, vad_end: 9.28
+whisper_vad: vad_segment_info: orig_start: 9.70, orig_end: 16.16, vad_start: 9.48, vad_end: 15.94
+whisper_vad: vad_segment_info: orig_start: 16.45, orig_end: 24.67, vad_start: 16.14, vad_end: 24.36
+whisper_vad: vad_segment_info: orig_start: 25.38, orig_end: 55.77, vad_start: 24.56, vad_end: 54.95
+whisper_vad: vad_segment_info: orig_start: 56.16, orig_end: 58.85, vad_start: 55.15, vad_end: 57.84
+whisper_vad: vad_segment_info: orig_start: 59.04, orig_end: 60.09, vad_start: 58.04, vad_end: 59.09
+whisper_vad: vad_segment_info: orig_start: 60.26, orig_end: 73.57, vad_start: 59.29, vad_end: 72.60
+whisper_vad: vad_segment_info: orig_start: 73.89, orig_end: 75.45, vad_start: 72.80, vad_end: 74.36
+whisper_vad: vad_segment_info: orig_start: 75.87, orig_end: 89.50, vad_start: 74.56, vad_end: 88.19
+whisper_vad: vad_segment_info: orig_start: 89.92, orig_end: 104.93, vad_start: 88.39, vad_end: 103.40
+whisper_vad: vad_segment_info: orig_start: 105.28, orig_end: 105.98, vad_start: 103.60, vad_end: 104.30
+whisper_vad: vad_segment_info: orig_start: 106.21, orig_end: 113.05, vad_start: 104.50, vad_end: 111.34
+whisper_vad: vad_segment_info: orig_start: 113.38, orig_end: 115.52, vad_start: 111.54, vad_end: 113.68
+whisper_vad: vad_segment_info: orig_start: 116.16, orig_end: 117.82, vad_start: 113.88, vad_end: 115.54
+whisper_vad: vad_segment_info: orig_start: 117.99, orig_end: 129.92, vad_start: 115.74, vad_end: 127.67
+whisper_vad: vad_segment_info: orig_start: 130.15, orig_end: 130.49, vad_start: 127.87, vad_end: 128.21
+whisper_vad: vad_segment_info: orig_start: 130.98, orig_end: 132.64, vad_start: 128.41, vad_end: 130.07
+whisper_vad: vad_segment_info: orig_start: 132.99, orig_end: 139.49, vad_start: 130.27, vad_end: 136.77
+whisper_vad: vad_segment_info: orig_start: 139.65, orig_end: 139.97, vad_start: 136.97, vad_end: 137.29
+whisper_vad: Created time mapping table with 59 points
+whisper_vad: Reduced audio from 2239488 to 2196607 samples (1.9% reduction)
+ffmpeg version 8.0.1 Copyright (c) 2000-2025 the FFmpeg developers
+  built with Apple clang version 17.0.0 (clang-1700.6.3.2)
+  configuration: --prefix=/opt/homebrew/Cellar/ffmpeg/8.0.1_4 --enable-shared --enable-pthreads --enable-version3 --cc=clang --host-cflags= --host-ldflags= --enable-ffplay --enable-gpl --enable-libsvtav1 --enable-libopus --enable-libx264 --enable-libmp3lame --enable-libdav1d --enable-libvpx --enable-libx265 --enable-openssl --enable-videotoolbox --enable-audiotoolbox --enable-neon
+  libavutil      60.  8.100 / 60.  8.100
+  libavcodec     62. 11.100 / 62. 11.100
+  libavformat    62.  3.100 / 62.  3.100
+  libavdevice    62.  1.100 / 62.  1.100
+  libavfilter    11.  4.100 / 11.  4.100
+  libswscale      9.  1.100 /  9.  1.100
+  libswresample   6.  1.100 /  6.  1.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from './whisper-server-20260324-005156-699528292.wav':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 1
+    compatible_brands: isomiso4
+    creation_time   : 2026-03-23T19:32:43.000000Z
+  Duration: 00:00:21.64, start: 0.000000, bitrate: 486 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 576x1024, 349 kb/s, SAR 1:1 DAR 9:16, 30.05 fps, 30 tbr, 9000k tbn (default)
+    Metadata:
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s (default)
+    Metadata:
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+Stream mapping:
+  Stream #0:1 -> #0:0 (aac (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to './whisper-server-20260324-005156-699528292.wav_temp.wav':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 1
+    compatible_brands: isomiso4
+    ISFT            : Lavf62.3.100
+  Stream #0:0(und): Audio: pcm_s16le ([1][0][0][0] / 0x0001), 16000 Hz, mono, s16, 256 kb/s (default)
+    Metadata:
+      encoder         : Lavc62.11.100 pcm_s16le
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+[out#0/wav @ 0x891048300] video:0KiB audio:676KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.011263%
+size=     676KiB time=00:00:21.64 bitrate= 256.0kbits/s speed=2e+03x elapsed=0:00:00.01    
+
+system_info: n_threads = 4 / 10 | WHISPER : COREML = 1 | OPENVINO = 0 | MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | SME = 1 | ACCELERATE = 1 | REPACK = 1 | 
+
+operator(): processing 'blob' (346256 samples, 21.6 sec), 4 threads, 1 processors, lang = tr, task = transcribe, timestamps = 1 ...
+
+whisper_full: VAD is enabled, processing speech segments only
+whisper_vad: VAD is enabled, processing speech segments only
+whisper_vad_segments_from_samples: detecting speech timestamps in 346256 samples
+whisper_vad_detect_speech: detecting speech in 346256 samples
+whisper_vad_detect_speech: n_chunks: 677
+whisper_vad_detect_speech: props size: 677
+whisper_vad_detect_speech: chunk_len: 144 < n_window: 512
+whisper_vad_detect_speech: vad time = 1263.27 ms processing 346256 samples
+whisper_vad_segments_from_probs: detecting speech timestamps using 677 probabilities
+whisper_vad_segments_from_probs: Merged 1 adjacent segments, now have 8 segments
+whisper_vad_segments_from_probs: Final speech segments after filtering: 8
+whisper_vad_segments_from_probs: VAD segment 0: start = 0.39, end = 1.25 (duration: 0.86)
+whisper_vad_segments_from_probs: VAD segment 1: start = 1.73, end = 3.29 (duration: 1.56)
+whisper_vad_segments_from_probs: VAD segment 2: start = 3.91, end = 5.05 (duration: 1.14)
+whisper_vad_segments_from_probs: VAD segment 3: start = 5.57, end = 7.13 (duration: 1.56)
+whisper_vad_segments_from_probs: VAD segment 4: start = 8.80, end = 9.98 (duration: 1.18)
+whisper_vad_segments_from_probs: VAD segment 5: start = 11.33, end = 13.98 (duration: 2.65)
+whisper_vad_segments_from_probs: VAD segment 6: start = 15.39, end = 16.89 (duration: 1.50)
+whisper_vad_segments_from_probs: VAD segment 7: start = 17.83, end = 18.91 (duration: 1.08)
+whisper_vad: detected 8 speech segments
+whisper_vad: Including segment 0: 0.39 - 1.35 (duration: 0.96)
+whisper_vad: Including segment 1: 1.73 - 3.39 (duration: 1.66)
+whisper_vad: Including segment 2: 3.91 - 5.15 (duration: 1.24)
+whisper_vad: Including segment 3: 5.57 - 7.23 (duration: 1.66)
+whisper_vad: Including segment 4: 8.80 - 10.08 (duration: 1.28)
+whisper_vad: Including segment 5: 11.33 - 14.08 (duration: 2.75)
+whisper_vad: Including segment 6: 15.39 - 16.99 (duration: 1.60)
+whisper_vad: Including segment 7: 17.83 - 18.91 (duration: 1.08)
+whisper_vad: total duration of speech segments: 12.23 seconds
+whisper_vad: vad_segment_info: orig_start: 0.39, orig_end: 1.25, vad_start: 0.00, vad_end: 0.86
+whisper_vad: vad_segment_info: orig_start: 1.73, orig_end: 3.29, vad_start: 1.06, vad_end: 2.62
+whisper_vad: vad_segment_info: orig_start: 3.91, orig_end: 5.05, vad_start: 2.82, vad_end: 3.96
+whisper_vad: vad_segment_info: orig_start: 5.57, orig_end: 7.13, vad_start: 4.16, vad_end: 5.72
+whisper_vad: vad_segment_info: orig_start: 8.80, orig_end: 9.98, vad_start: 5.92, vad_end: 7.10
+whisper_vad: vad_segment_info: orig_start: 11.33, orig_end: 13.98, vad_start: 7.30, vad_end: 9.95
+whisper_vad: vad_segment_info: orig_start: 15.39, orig_end: 16.89, vad_start: 10.15, vad_end: 11.65
+whisper_vad: vad_segment_info: orig_start: 17.83, orig_end: 18.91, vad_start: 11.85, vad_end: 12.93
+whisper_vad: Created time mapping table with 23 points
+whisper_vad: Reduced audio from 346256 to 206880 samples (40.3% reduction)
+ffmpeg version 8.0.1 Copyright (c) 2000-2025 the FFmpeg developers
+  built with Apple clang version 17.0.0 (clang-1700.6.3.2)
+  configuration: --prefix=/opt/homebrew/Cellar/ffmpeg/8.0.1_4 --enable-shared --enable-pthreads --enable-version3 --cc=clang --host-cflags= --host-ldflags= --enable-ffplay --enable-gpl --enable-libsvtav1 --enable-libopus --enable-libx264 --enable-libmp3lame --enable-libdav1d --enable-libvpx --enable-libx265 --enable-openssl --enable-videotoolbox --enable-audiotoolbox --enable-neon
+  libavutil      60.  8.100 / 60.  8.100
+  libavcodec     62. 11.100 / 62. 11.100
+  libavformat    62.  3.100 / 62.  3.100
+  libavdevice    62.  1.100 / 62.  1.100
+  libavfilter    11.  4.100 / 11.  4.100
+  libswscale      9.  1.100 /  9.  1.100
+  libswresample   6.  1.100 /  6.  1.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from './whisper-server-20260324-005257-245682668.wav':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 1
+    compatible_brands: isomiso4
+    creation_time   : 2026-03-23T19:32:43.000000Z
+  Duration: 00:00:21.64, start: 0.000000, bitrate: 486 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 576x1024, 349 kb/s, SAR 1:1 DAR 9:16, 30.05 fps, 30 tbr, 9000k tbn (default)
+    Metadata:
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s (default)
+    Metadata:
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+Stream mapping:
+  Stream #0:1 -> #0:0 (aac (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to './whisper-server-20260324-005257-245682668.wav_temp.wav':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 1
+    compatible_brands: isomiso4
+    ISFT            : Lavf62.3.100
+  Stream #0:0(und): Audio: pcm_s16le ([1][0][0][0] / 0x0001), 16000 Hz, mono, s16, 256 kb/s (default)
+    Metadata:
+      encoder         : Lavc62.11.100 pcm_s16le
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+[out#0/wav @ 0x7b4c44300] video:0KiB audio:676KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.011263%
+size=     676KiB time=00:00:21.64 bitrate= 256.0kbits/s speed=1.91e+03x elapsed=0:00:00.01    
+
+system_info: n_threads = 4 / 10 | WHISPER : COREML = 1 | OPENVINO = 0 | MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | SME = 1 | ACCELERATE = 1 | REPACK = 1 | 
+
+operator(): processing 'blob' (346256 samples, 21.6 sec), 4 threads, 1 processors, lang = tr, task = transcribe, timestamps = 1 ...
+
+whisper_full: VAD is enabled, processing speech segments only
+whisper_vad: VAD is enabled, processing speech segments only
+whisper_vad_segments_from_samples: detecting speech timestamps in 346256 samples
+whisper_vad_detect_speech: detecting speech in 346256 samples
+whisper_vad_detect_speech: n_chunks: 677
+whisper_vad_detect_speech: props size: 677
+whisper_vad_detect_speech: chunk_len: 144 < n_window: 512
+whisper_vad_detect_speech: vad time = 1304.51 ms processing 346256 samples
+whisper_vad_segments_from_probs: detecting speech timestamps using 677 probabilities
+whisper_vad_segments_from_probs: Merged 1 adjacent segments, now have 8 segments
+whisper_vad_segments_from_probs: Final speech segments after filtering: 8
+whisper_vad_segments_from_probs: VAD segment 0: start = 0.39, end = 1.25 (duration: 0.86)
+whisper_vad_segments_from_probs: VAD segment 1: start = 1.73, end = 3.29 (duration: 1.56)
+whisper_vad_segments_from_probs: VAD segment 2: start = 3.91, end = 5.05 (duration: 1.14)
+whisper_vad_segments_from_probs: VAD segment 3: start = 5.57, end = 7.13 (duration: 1.56)
+whisper_vad_segments_from_probs: VAD segment 4: start = 8.80, end = 9.98 (duration: 1.18)
+whisper_vad_segments_from_probs: VAD segment 5: start = 11.33, end = 13.98 (duration: 2.65)
+whisper_vad_segments_from_probs: VAD segment 6: start = 15.39, end = 16.89 (duration: 1.50)
+whisper_vad_segments_from_probs: VAD segment 7: start = 17.83, end = 18.91 (duration: 1.08)
+whisper_vad: detected 8 speech segments
+whisper_vad: Including segment 0: 0.39 - 1.35 (duration: 0.96)
+whisper_vad: Including segment 1: 1.73 - 3.39 (duration: 1.66)
+whisper_vad: Including segment 2: 3.91 - 5.15 (duration: 1.24)
+whisper_vad: Including segment 3: 5.57 - 7.23 (duration: 1.66)
+whisper_vad: Including segment 4: 8.80 - 10.08 (duration: 1.28)
+whisper_vad: Including segment 5: 11.33 - 14.08 (duration: 2.75)
+whisper_vad: Including segment 6: 15.39 - 16.99 (duration: 1.60)
+whisper_vad: Including segment 7: 17.83 - 18.91 (duration: 1.08)
+whisper_vad: total duration of speech segments: 12.23 seconds
+whisper_vad: vad_segment_info: orig_start: 0.39, orig_end: 1.25, vad_start: 0.00, vad_end: 0.86
+whisper_vad: vad_segment_info: orig_start: 1.73, orig_end: 3.29, vad_start: 1.06, vad_end: 2.62
+whisper_vad: vad_segment_info: orig_start: 3.91, orig_end: 5.05, vad_start: 2.82, vad_end: 3.96
+whisper_vad: vad_segment_info: orig_start: 5.57, orig_end: 7.13, vad_start: 4.16, vad_end: 5.72
+whisper_vad: vad_segment_info: orig_start: 8.80, orig_end: 9.98, vad_start: 5.92, vad_end: 7.10
+whisper_vad: vad_segment_info: orig_start: 11.33, orig_end: 13.98, vad_start: 7.30, vad_end: 9.95
+whisper_vad: vad_segment_info: orig_start: 15.39, orig_end: 16.89, vad_start: 10.15, vad_end: 11.65
+whisper_vad: vad_segment_info: orig_start: 17.83, orig_end: 18.91, vad_start: 11.85, vad_end: 12.93
+whisper_vad: Created time mapping table with 23 points
+whisper_vad: Reduced audio from 346256 to 206880 samples (40.3% reduction)

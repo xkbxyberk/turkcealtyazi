@@ -47,13 +47,34 @@
       </div>
     </section>
 
-    <!-- 4. Ana Buton Alanı -->
+    <!-- 4. Mod Seçimi -->
+    <section class="mode-section" id="modeSection">
+      <label class="section-label">Altyazı Türü</label>
+      <div class="mode-cards">
+        <button class="mode-card selected" id="modeClassic" data-mode="classic">
+          <div class="mode-card-icon">&#9776;</div>
+          <div class="mode-card-body">
+            <div class="mode-card-title">Klasik Altyazı</div>
+            <div class="mode-card-desc">Netflix/sinema standardı. 1-2 satır bloklar, CPS kontrollü, Türkçe sentaktik kurallar.</div>
+          </div>
+        </button>
+        <button class="mode-card" id="modeWordByWord" data-mode="word-by-word">
+          <div class="mode-card-icon">&#9998;</div>
+          <div class="mode-card-body">
+            <div class="mode-card-title">Kelime Kelime</div>
+            <div class="mode-card-desc">Her kelime konuşulduğu anda belirir ve biter. Sosyal medya, TikTok/Reels için ideal.</div>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <!-- 5. Ana Buton Alanı -->
     <section class="action-section" id="actionSection">
       <button class="btn-generate" id="btnGenerate" disabled>Altyazı Oluştur</button>
       <div class="action-hint">Türkçe · large-v3 · Core ML</div>
     </section>
 
-    <!-- 5. İlerleme Alanı -->
+    <!-- 6. İlerleme Alanı -->
     <section class="progress-section" id="progressSection">
       <div class="progress-steps" id="progressSteps">
         <div class="progress-step active" id="step1">
@@ -81,7 +102,7 @@
       </div>
     </section>
 
-    <!-- 6. Sonuç / Mesaj Alanı -->
+    <!-- 7. Sonuç / Mesaj Alanı -->
     <div class="result-card" id="resultCard">
       <div class="result-title" id="resultTitle"></div>
       <div class="result-metrics" id="resultMetrics" style="display:none">
@@ -103,7 +124,7 @@
       <button class="btn-edit-result" id="btnOpenEditor" style="display:none">D&#252;zenle &rarr;</button>
     </div>
 
-    <!-- 7. Sunucu Yardım Alanı -->
+    <!-- 8. Sunucu Yardım Alanı -->
     <section class="server-help" id="serverHelpSection">
       <div class="server-help-icon">&#9889;</div>
       <div class="server-help-title">Sunucu ba&#351;lat&#305;lmad&#305;</div>
@@ -119,7 +140,7 @@
       </div>
     </section>
 
-    <!-- 8. Footer -->
+    <!-- 9. Footer -->
     <footer class="footer-bar">
       <span>localhost:8787</span>
       <span>large-v3 &middot; Core ML</span>

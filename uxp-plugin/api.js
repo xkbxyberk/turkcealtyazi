@@ -23,13 +23,16 @@ async function checkServerHealth() {
  * @param {string} filename - Dosya adı
  * @returns {Promise<Object>} whisper-server yanıtı
  */
-async function transcribeAudio(audioBlob, filename, initialPrompt) {
+async function transcribeAudio(audioBlob, filename, initialPrompt, wordTimestamps) {
   const formData = new FormData();
   formData.append("file", audioBlob, filename || "audio.wav");
   formData.append("language", "tr");
   formData.append("response_format", "verbose_json");
   if (initialPrompt && initialPrompt.length > 0) {
     formData.append("prompt", initialPrompt);
+  }
+  if (wordTimestamps) {
+    formData.append("word_timestamps", "true");
   }
 
   const response = await fetch(SERVER_URL + "/inference", {
