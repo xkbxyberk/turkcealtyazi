@@ -71,17 +71,23 @@ whisper_init_state: Core ML model loaded
 whisper_init_state: compute buffer (conv)   =   10.81 MB
 whisper_init_state: compute buffer (cross)  =  139.83 MB
 whisper_init_state: compute buffer (decode) =  100.04 MB
-ffmpeg version 8.0.1 Copyright (c) 2000-2025 the FFmpeg developers
-  built with Apple clang version 17.0.0 (clang-1700.6.3.2)
-  configuration: --prefix=/opt/homebrew/Cellar/ffmpeg/8.0.1_4 --enable-shared --enable-pthreads --enable-version3 --cc=clang --host-cflags= --host-ldflags= --enable-ffplay --enable-gpl --enable-libsvtav1 --enable-libopus --enable-libx264 --enable-libmp3lame --enable-libdav1d --enable-libvpx --enable-libx265 --enable-openssl --enable-videotoolbox --enable-audiotoolbox --enable-neon
-  libavutil      60.  8.100 / 60.  8.100
-  libavcodec     62. 11.100 / 62. 11.100
-  libavformat    62.  3.100 / 62.  3.100
-  libavdevice    62.  1.100 / 62.  1.100
-  libavfilter    11.  4.100 / 11.  4.100
-  libswscale      9.  1.100 /  9.  1.100
-  libswresample   6.  1.100 /  6.  1.100
-Input #0, mov,mp4,m4a,3gp,3g2,mj2, from './whisper-server-20260323-034105-157569983.wav':
+
+whisper_print_timings:     load time =  1688.66 ms
+whisper_print_timings:     fallbacks =   0 p /   0 h
+whisper_print_timings:      mel time =     0.00 ms
+whisper_print_timings:   sample time =     0.00 ms /     1 runs (     0.00 ms per run)
+whisper_print_timings:   encode time =     0.00 ms /     1 runs (     0.00 ms per run)
+whisper_print_timings:   decode time =     0.00 ms /     1 runs (     0.00 ms per run)
+whisper_print_timings:   batchd time =     0.00 ms /     1 runs (     0.00 ms per run)
+whisper_print_timings:   prompt time =     0.00 ms /     1 runs (     0.00 ms per run)
+whisper_print_timings:    total time = 66710336.00 ms
+ggml_metal_free: deallocating
+
+whisper server listening at http://127.0.0.1:8787
+
+
+Caught signal 15, shutting down gracefully...
+ANE Model unload failed. (Program path : (null)),3g2,mj2, from './whisper-server-20260323-034105-157569983.wav':
   Metadata:
     major_brand     : isom
     minor_version   : 512
@@ -792,3 +798,35 @@ whisper_vad: vad_segment_info: orig_start: 24.77, orig_end: 25.53, vad_start: 15
 whisper_vad: vad_segment_info: orig_start: 26.27, orig_end: 27.65, vad_start: 16.81, vad_end: 18.19
 whisper_vad: Created time mapping table with 23 points
 whisper_vad: Reduced audio from 465920 to 291040 samples (37.5% reduction)
+
+whisper_print_timings:     load time =  1622.58 ms
+whisper_print_timings:     fallbacks =   0 p /   0 h
+whisper_print_timings:      mel time =   318.36 ms
+whisper_print_timings:   sample time =  1588.35 ms /     1 runs (  1588.35 ms per run)
+whisper_print_timings:   encode time = 32612.73 ms /    46 runs (   708.97 ms per run)
+whisper_print_timings:   decode time = 164377.38 ms /  7494 runs (    21.93 ms per run)
+whisper_print_timings:   batchd time =   260.08 ms /    21 runs (    12.38 ms per run)
+whisper_print_timings:   prompt time =  7948.36 ms /  7865 runs (     1.01 ms per run)
+whisper_print_timings:    total time = 66688248.00 ms
+ggml_metal_free: deallocating
+
+whisper server listening at http://127.0.0.1:8787
+
+Received request: blob
+Successfully loaded blob
+Running whisper.cpp inference on blob
+Received request: blob
+Successfully loaded blob
+Running whisper.cpp inference on blob
+Received request: blob
+Successfully loaded blob
+Running whisper.cpp inference on blob
+Received request: blob
+Successfully loaded blob
+Running whisper.cpp inference on blob
+Received request: blob
+Successfully loaded blob
+Running whisper.cpp inference on blob
+
+Caught signal 15, shutting down gracefully...
+ANE Model unload failed. (Program path : (null))

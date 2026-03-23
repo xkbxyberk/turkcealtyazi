@@ -70,7 +70,7 @@ turkcealtyazi/
 
 ## Platform
 - macOS, Apple M4 MacBook Air (10 CPU, 10 GPU, 16 Neural Engine)
-- Premiere Pro 25.6+ (UXP desteği)
+- Premiere Pro 25.6+ (UXP desteği, manifest minVersion: 25.6.0)
 - Xcode 26.3, Python 3.11 (brew), Node.js v24, Git, CMake
 
 ## UXP API Keşifleri (Önemli)
@@ -313,6 +313,18 @@ Kelime kelime animasyon için potansiyel yaklaşımlar:
 | Sunucu manuel başlatılıyor | Çözümsüz | shell.openPath UXP'de çalışmıyor |
 | SRT timeline'a manuel ekleniyor | Çözümsüz | Caption track API yok (Adobe) |
 | Birkaç kelime bölünmesi | Kısmen çözüldü | "yo ğurt" gibi nadir vakalar |
+
+## Hata Düzeltmeleri (v1.1)
+- [x] srt.js: enforceLineLimit() metin kaybı düzeltildi — artık metni kesmiyor
+- [x] editor.js: Undo debounce eklendi — 500ms sessizlikten sonra tek undo kaydı
+- [x] editor.js: Virtual scroll seçim kaybı düzeltildi — seçili kart her zaman render edilir
+- [x] srt.js: Orphaned JSDoc düzeltildi — generateAdobeTranscriptJSON yorumu doğru yere taşındı
+- [x] srt.js: extractWords zamanlama sızıntısı düzeltildi — kelimeler segment sınırını aşmaz
+- [x] index.js: handleGenerate async yarış durumu düzeltildi — loadSRT await ediliyor
+- [x] editor.js: Klavye kısayolları eklendi (Ctrl+Z/Y/S, ↑↓, Delete)
+- [x] editor.js: mergeSubtitle CPS hesabı düzeltildi — gap çıkarılıyor
+- [x] editor.js: Kaydedilmemiş değişiklik göstergesi eklendi (Kaydet butonunda turuncu nokta)
+- [x] manifest.json: minVersion 25.1.0 → 25.6.0
 
 ## Araştırma Referansları
 - `docs/Segmentasyon_Arastirma_Referans.md` — İki Deep Research raporunun sentezi

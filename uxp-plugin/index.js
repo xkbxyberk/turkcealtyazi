@@ -575,15 +575,13 @@ async function handleGenerate() {
 
     lastSrtPath = srtPath;
 
-    setTimeout(() => {
+    setTimeout(async () => {
       hideProgress();
       showResult("success", "Altyazı oluşturuldu", detailParts.join("\n"), srtFileName);
-      // "Düzenle" butonunu göster
       const btnEditor = document.getElementById('btnOpenEditor');
       if (btnEditor) btnEditor.style.display = 'inline-block';
-      // Otomatik olarak düzenleme sayfasına geç
       showPage('editor');
-      loadSRT(lastSrtPath);
+      await loadSRT(lastSrtPath);
     }, 800);
 
   } catch (err) {

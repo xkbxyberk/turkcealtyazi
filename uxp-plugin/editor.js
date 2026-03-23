@@ -23,6 +23,21 @@ const editorState = {
   redoStack: [],        // [{type, data, timestamp}, ...]
 };
 
+let _textUndoTimer = null;
+let _textUndoSnapshot = null;
+
+function markModified() {
+  editorState.isModified = true;
+  const btn = document.getElementById('btnSaveSRT');
+  if (btn) btn.classList.add('has-changes');
+}
+
+function markSaved() {
+  editorState.isModified = false;
+  const btn = document.getElementById('btnSaveSRT');
+  if (btn) btn.classList.remove('has-changes');
+}
+
 // ─── Undo/Redo Sistemi ──────────────────────────────────────────────────────
 
 /**
@@ -114,7 +129,7 @@ function undo() {
   }
 
   editorState.redoStack.push(redoAction);
-  editorState.isModified = true;
+  markModified();
   renderList();
 
   const selectIdx = action.data.index != null ? Math.min(action.data.index, editorState.subtitles.length - 1) : -1;
@@ -186,7 +201,7 @@ function redo() {
   }
 
   editorState.undoStack.push(undoAction);
-  editorState.isModified = true;
+  markModified();
   renderList();
 
   const selectIdx = action.data.index != null ? Math.min(action.data.index, editorState.subtitles.length - 1) : -1;
@@ -281,7 +296,7 @@ async function loadSRT(filePath) {
     editorState.subtitles = subtitles;
     editorState.srtFilePath = filePath;
     editorState.selectedIndex = -1;
-    editorState.isModified = false;
+    markSaved();
     editorState.undoStack = [];
     editorState.redoStack = [];
 
@@ -366,8 +381,18 @@ function renderVirtualList(container, filtered) {
   const startVisible = Math.floor(scrollTop / CARD_HEIGHT_ESTIMATE);
   const endVisible = Math.ceil((scrollTop + viewHeight) / CARD_HEIGHT_ESTIMATE);
 
-  const renderStart = Math.max(0, startVisible - VIRTUAL_BUFFER);
-  const renderEnd = Math.min(filtered.length, endVisible + VIRTUAL_BUFFER);
+  let renderStart = Math.max(0, startVisible - VIRTUAL_BUFFER);
+  let renderEnd = Math.min(filtered.length, endVisible + VIRTUAL_BUFFER);
+
+  // Seçili kartı her zaman render aralığına dahil et
+  const selectedIdx = editorState.selectedIndex;
+  if (selectedIdx >= 0 && filtered) {
+    const selectedFilteredPos = filtered.indexOf(selectedIdx);
+    if (selectedFilteredPos >= 0) {
+      if (selectedFilteredPos < renderStart) renderStart = selectedFilteredPos;
+      if (selectedFilteredPos >= renderEnd) renderEnd = selectedFilteredPos + 1;
+    }
+  }
 
   // Aynı aralık → tekrar render etme
   if (_lastRenderRange.start === renderStart && _lastRenderRange.end === renderEnd) {
@@ -539,6 +564,19 @@ function createSubtitleCard(sub, index, metrics) {
  * Altyazıyı seçer, düzenleme alanını doldurur, CSS class'ı günceller.
  */
 function selectSubtitle(index) {
+  // Bekleyen metin undo'sunu flush et
+  if (_textUndoTimer) {
+    clearTimeout(_textUndoTimer);
+    _textUndoTimer = null;
+    if (_textUndoSnapshot !== null && editorState.selectedIndex >= 0) {
+      const currentText = editorState.subtitles[editorState.selectedIndex]?.text;
+      if (_textUndoSnapshot !== currentText) {
+        pushUndo({ type: 'edit_text', data: { index: editorState.selectedIndex, text: _textUndoSnapshot } });
+      }
+    }
+    _textUndoSnapshot = null;
+  }
+
   const prevIndex = editorState.selectedIndex;
   editorState.selectedIndex = index;
 
@@ -622,15 +660,26 @@ function updateText() {
   const editText = document.getElementById('editText');
   if (!editText) return;
 
-  const oldText = editorState.subtitles[index].text;
-  if (editText.value === oldText) return;
+  // İlk değişiklikte eski metni snapshot'la
+  if (_textUndoSnapshot === null) {
+    _textUndoSnapshot = editorState.subtitles[index].text;
+  }
 
-  pushUndo({ type: 'edit_text', data: { index: index, text: oldText } });
+  // Metni hemen güncelle (UI anlık tepki versin)
   editorState.subtitles[index].text = editText.value;
-  editorState.isModified = true;
-
+  markModified();
   refreshEditIndicators();
   updateCard(index);
+
+  // Debounce: 500ms sessizlikten sonra tek bir undo kaydı oluştur
+  if (_textUndoTimer) clearTimeout(_textUndoTimer);
+  _textUndoTimer = setTimeout(() => {
+    if (_textUndoSnapshot !== null && _textUndoSnapshot !== editText.value) {
+      pushUndo({ type: 'edit_text', data: { index: index, text: _textUndoSnapshot } });
+    }
+    _textUndoSnapshot = null;
+    _textUndoTimer = null;
+  }, 500);
 }
 
 /**
@@ -674,7 +723,7 @@ function updateTiming(field, delta) {
     sub.endTime = sub.startTime + 0.1;
   }
 
-  editorState.isModified = true;
+  markModified();
 
   // Input'ları güncelle
   const editStartTime = document.getElementById('editStartTime');
@@ -724,7 +773,7 @@ function updateTimingFromInput(field) {
     }
   }
 
-  editorState.isModified = true;
+  markModified();
   checkOverlap(index);
   refreshEditIndicators();
   updateCard(index);
@@ -818,7 +867,7 @@ function splitSubtitle(index) {
 
   editorState.subtitles.splice(index + 1, 0, newSub);
   renumberSubtitles();
-  editorState.isModified = true;
+  markModified();
 
   renderList();
   selectSubtitle(index);
@@ -841,9 +890,10 @@ function mergeSubtitle(index) {
   const sub1 = editorState.subtitles[index];
   const sub2 = editorState.subtitles[index + 1];
 
-  // CPS kontrolü
+  // CPS kontrolü — gerçek konuşma süresi: gap'i çıkar
   const mergedText = sub1.text + ' ' + sub2.text;
-  const mergedDuration = sub2.endTime - sub1.startTime;
+  const gapBetween = Math.max(0, sub2.startTime - sub1.endTime);
+  const mergedDuration = (sub2.endTime - sub1.startTime) - gapBetween;
   const mergedCPS = mergedDuration > 0 ? mergedText.replace(/\n/g, ' ').length / mergedDuration : 0;
 
   if (mergedCPS > SRT_CONFIG.maxCPS) {
@@ -867,7 +917,7 @@ function mergeSubtitle(index) {
 
   editorState.subtitles.splice(index + 1, 1);
   renumberSubtitles();
-  editorState.isModified = true;
+  markModified();
 
   renderList();
   selectSubtitle(index);
@@ -891,7 +941,7 @@ function deleteSubtitle(index) {
 
   editorState.subtitles.splice(index, 1);
   renumberSubtitles();
-  editorState.isModified = true;
+  markModified();
 
   renderList();
 
@@ -975,7 +1025,7 @@ async function saveSRT() {
     const srtContent = writeSRT(editorState.subtitles);
     const file = await fs_editor.getEntryWithUrl("file:" + editorState.srtFilePath);
     await file.write(srtContent, { format: uxpfs_editor.formats.utf8 });
-    editorState.isModified = false;
+    markSaved();
 
     const btn = document.getElementById('btnSaveSRT');
     if (btn) {
@@ -1080,7 +1130,7 @@ function applyOffset() {
     }
   }
 
-  editorState.isModified = true;
+  markModified();
   renderList();
   if (editorState.selectedIndex >= 0) selectSubtitle(editorState.selectedIndex);
   showEditorMessage(offsetMs + 'ms offset uygulandı.', 'info');
@@ -1804,4 +1854,58 @@ function initEditArea() {
 
   // Ayarlar paneli
   initSettingsPanel();
+
+  // ─── Klavye Kısayolları ─────────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    // Sadece editor sayfası görünürken aktif
+    const pageEditor = document.getElementById('page-editor');
+    if (!pageEditor || pageEditor.style.display === 'none') return;
+
+    const isTextInput = e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT';
+
+    // Ctrl+S → her zaman kaydet (textarea içindeyken bile)
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveSRT();
+      return;
+    }
+
+    // Aşağıdaki kısayollar sadece textarea/input dışındayken çalışır
+    if (isTextInput) return;
+
+    // Ctrl+Z → undo
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      undo();
+      return;
+    }
+
+    // Ctrl+Y veya Ctrl+Shift+Z → redo
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      e.preventDefault();
+      redo();
+      return;
+    }
+
+    // ArrowUp → önceki altyazı
+    if (e.key === 'ArrowUp' && editorState.selectedIndex > 0) {
+      e.preventDefault();
+      selectSubtitle(editorState.selectedIndex - 1);
+      return;
+    }
+
+    // ArrowDown → sonraki altyazı
+    if (e.key === 'ArrowDown' && editorState.selectedIndex < editorState.subtitles.length - 1) {
+      e.preventDefault();
+      selectSubtitle(editorState.selectedIndex + 1);
+      return;
+    }
+
+    // Delete → seçili altyazıyı sil
+    if (e.key === 'Delete' && editorState.selectedIndex >= 0) {
+      e.preventDefault();
+      deleteSubtitle(editorState.selectedIndex);
+      return;
+    }
+  });
 }

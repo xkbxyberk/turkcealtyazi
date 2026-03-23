@@ -213,9 +213,8 @@ function extractWords(segments) {
     const rawWords = text.split(/\s+/).filter(Boolean);
     if (rawWords.length === 0) continue;
 
-    // Minimum süre kontrolü: her kelimeye en az 100ms gerekli
-    const minTotalDuration = rawWords.length * MIN_WORD_DURATION;
-    const effectiveDuration = Math.max(segDuration, minTotalDuration);
+    // Segment sınırını ASLA aşma — kelimeleri segment içine sıkıştır
+    const effectiveDuration = segDuration;
     const wordDur = effectiveDuration / rawWords.length;
 
     for (let i = 0; i < rawWords.length; i++) {
@@ -225,7 +224,7 @@ function extractWords(segments) {
       allWords.push({
         text: rawWords[i],
         start: Math.max(wStart, segStart),          // segment sınırı altına düşme
-        end: Math.min(wEnd, Math.max(segEnd, segStart + effectiveDuration)), // segment sınırı üstüne çıkma
+        end: Math.min(wEnd, segEnd),
         segmentId: segIdx,                           // orijinal segment kimliği
       });
     }
@@ -419,10 +418,9 @@ function splitIntoLines(text) {
  */
 function enforceLineLimit(line) {
   if (!line || line.length <= SRT_CONFIG.maxSoftCPL) return line;
-  // maxSoftCPL'ye kadar olan en yakın boşluğu bul
-  let breakPos = line.lastIndexOf(' ', SRT_CONFIG.maxSoftCPL);
-  if (breakPos <= 0) return line; // Boşluk yoksa kesemeyiz
-  return line.substring(0, breakPos);
+  // maxSoftCPL aşıldığında metni kesmek yerine olduğu gibi döndür.
+  // splitIntoLines zaten 2 satıra bölmeyi deniyor, burada veri kaybı yapmamalıyız.
+  return line;
 }
 
 /**
@@ -672,11 +670,6 @@ function generateSRT(segments) {
   return lines.join("\n");
 }
 
-/**
- * whisper-server verbose_json çıktısını Adobe Transcript JSON formatına çevirir.
- * @param {Array} segments - whisper segments dizisi
- * @returns {string} Adobe transcript JSON string
- */
 // ─── SRT Parse / Write (Faz 3) ──────────────────────────────────────────────
 
 /**
@@ -760,6 +753,11 @@ function writeSRT(subtitles) {
 
 // ─── Adobe Transcript JSON ──────────────────────────────────────────────────
 
+/**
+ * whisper-server verbose_json çıktısını Adobe Transcript JSON formatına çevirir.
+ * @param {Array} segments - whisper segments dizisi
+ * @returns {string|null} Adobe transcript JSON string, veya boşsa null
+ */
 function generateAdobeTranscriptJSON(segments) {
   if (!segments || segments.length === 0) return null;
 
