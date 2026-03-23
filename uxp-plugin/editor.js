@@ -30,12 +30,16 @@ function markModified() {
   editorState.isModified = true;
   const btn = document.getElementById('btnSaveSRT');
   if (btn) btn.classList.add('has-changes');
+  const dot = document.getElementById('unsavedDot');
+  if (dot) dot.style.display = 'inline';
 }
 
 function markSaved() {
   editorState.isModified = false;
   const btn = document.getElementById('btnSaveSRT');
   if (btn) btn.classList.remove('has-changes');
+  const dot = document.getElementById('unsavedDot');
+  if (dot) dot.style.display = 'none';
 }
 
 // ─── Undo/Redo Sistemi ──────────────────────────────────────────────────────
@@ -234,21 +238,36 @@ let _lastRenderRange = { start: -1, end: -1 };
  */
 function showEditorMessage(text, type) {
   let toast = document.getElementById('editorToast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'editorToast';
+  if (toast && toast._timeout) clearTimeout(toast._timeout);
+  if (toast) toast.remove();
+
+  toast = document.createElement('div');
+  toast.id = 'editorToast';
+  toast.className = 'editor-toast toast-' + (type || 'info') + ' toast-enter';
+
+  const icon = type === 'error' ? '\u2715' : type === 'warning' ? '!' : '\u2713';
+  toast.innerHTML = '<span class="toast-icon">' + icon + '</span><span class="toast-text">' + text + '</span>';
+
+  const pageEditor = document.getElementById('page-editor');
+  if (pageEditor) {
     const toolbar = document.getElementById('toolbar');
     if (toolbar) {
-      toolbar.parentNode.insertBefore(toast, toolbar.nextSibling);
+      pageEditor.insertBefore(toast, toolbar);
     } else {
-      return;
+      pageEditor.insertBefore(toast, pageEditor.firstChild && pageEditor.firstChild.nextSibling);
     }
   }
-  toast.textContent = text;
-  toast.className = 'editor-toast toast-' + (type || 'info');
-  toast.style.display = 'block';
-  if (toast._timeout) clearTimeout(toast._timeout);
-  toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
+
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      toast.classList.remove('toast-enter');
+    });
+  });
+
+  toast._timeout = setTimeout(function() {
+    toast.classList.add('toast-exit');
+    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 200);
+  }, 3000);
 }
 
 // ─── Hesaplama Yardımcıları ──────────────────────────────────────────────────
@@ -313,6 +332,49 @@ async function loadSRT(filePath) {
   }
 }
 
+// ─── Toolbar Badge & Counter Güncelleme ──────────────────────────────────────
+
+function updateToolbarBadges(filtered) {
+  // CPS hata sayısı
+  var cpsErrorCount = 0;
+  var lineErrorCount = 0;
+  for (var i = 0; i < editorState.subtitles.length; i++) {
+    var m = getSubtitleMetrics(editorState.subtitles[i]);
+    if (m.cpsStatus === 'error') cpsErrorCount++;
+    if (m.maxLineLength > SRT_CONFIG.maxCharsPerLine) lineErrorCount++;
+  }
+
+  var badgeCPS = document.getElementById('badgeCPS');
+  var badgeLine = document.getElementById('badgeLine');
+  if (badgeCPS) {
+    badgeCPS.textContent = cpsErrorCount > 0 ? String(cpsErrorCount) : '';
+    badgeCPS.className = 'filter-badge' + (cpsErrorCount > 0 ? ' has-count' : '');
+  }
+  if (badgeLine) {
+    badgeLine.textContent = lineErrorCount > 0 ? String(lineErrorCount) : '';
+    badgeLine.className = 'filter-badge' + (lineErrorCount > 0 ? ' has-count' : '');
+  }
+
+  // Altyazı sayacı
+  var counter = document.getElementById('subtitleCounter');
+  if (counter) {
+    if (editorState.searchQuery || editorState.filterMode !== 'all') {
+      counter.textContent = (filtered ? filtered.length : 0) + '/' + editorState.subtitles.length;
+    } else {
+      counter.textContent = editorState.subtitles.length + ' altyaz\u0131';
+    }
+  }
+
+  // Editor subtitle info
+  var editorSubInfo = document.getElementById('editorSubInfo');
+  if (editorSubInfo && editorState.subtitles.length > 0) {
+    var totalDuration = editorState.subtitles[editorState.subtitles.length - 1].endTime;
+    var mins = Math.floor(totalDuration / 60);
+    var secs = Math.floor(totalDuration % 60);
+    editorSubInfo.textContent = editorState.subtitles.length + ' altyaz\u0131 \u00B7 ' + mins + ':' + String(secs).padStart(2, '0');
+  }
+}
+
 // ─── Liste Render ────────────────────────────────────────────────────────────
 
 /**
@@ -343,10 +405,23 @@ function renderList() {
   editorState._filteredIndices = filtered;
 
   if (filtered.length === 0) {
-    container.innerHTML = '<div class="editor-empty">' +
-      (editorState.subtitles.length === 0 ? 'Altyazı bulunamadı' : 'Eşleşen altyazı bulunamadı') +
-      '</div>';
+    if (editorState.subtitles.length === 0) {
+      container.innerHTML =
+        '<div class="editor-empty">' +
+        '<div class="empty-icon">\uD83D\uDCDD</div>' +
+        '<div class="empty-text">Hen\u00FCz altyaz\u0131 yok</div>' +
+        '<div class="empty-hint">\u2190 Geri d\u00F6n\u00FCp "Altyaz\u0131 Olu\u015Ftur"a bas\u0131n</div>' +
+        '</div>';
+    } else {
+      container.innerHTML =
+        '<div class="editor-empty">' +
+        '<div class="empty-icon">\uD83D\uDD0D</div>' +
+        '<div class="empty-text">E\u015Fle\u015Fen altyaz\u0131 bulunamad\u0131</div>' +
+        '<div class="empty-hint">' + editorState.subtitles.length + ' altyaz\u0131 arand\u0131</div>' +
+        '</div>';
+    }
     _lastRenderRange = { start: -1, end: -1 };
+    updateToolbarBadges(filtered);
     return;
   }
 
@@ -361,6 +436,7 @@ function renderList() {
     }
     container.appendChild(frag);
     _lastRenderRange = { start: -1, end: -1 };
+    updateToolbarBadges(filtered);
     return;
   }
 
@@ -368,6 +444,8 @@ function renderList() {
   _lastRenderRange = { start: -1, end: -1 }; // Zorla yeniden render
   renderVirtualList(container, filtered);
   setupVirtualScrollListener(container);
+
+  updateToolbarBadges(filtered);
 }
 
 /**
@@ -474,7 +552,7 @@ function createSubtitleCard(sub, index, metrics) {
   }
 
   // Kart içeriği
-  // Üst satır: sıra no + zaman + CPS badge
+  // Üst satır: sıra no + zaman + süre
   const header = document.createElement('div');
   header.className = 'subtitle-card-header';
 
@@ -484,23 +562,17 @@ function createSubtitleCard(sub, index, metrics) {
 
   const timeLabel = document.createElement('span');
   timeLabel.className = 'subtitle-time';
-  timeLabel.textContent = formatTimestamp(sub.startTime) + ' → ' + formatTimestamp(sub.endTime);
+  timeLabel.textContent = formatTimestamp(sub.startTime) + ' \u2192 ' + formatTimestamp(sub.endTime);
 
-  const cpsBadge = document.createElement('span');
-  cpsBadge.className = 'cps-badge-group';
-  const cpsDot = document.createElement('span');
-  cpsDot.className = 'cps-badge cps-' + metrics.cpsStatus;
-  const cpsValue = document.createElement('span');
-  cpsValue.className = 'cps-value';
-  cpsValue.textContent = metrics.cps.toFixed(1);
-  cpsBadge.appendChild(cpsDot);
-  cpsBadge.appendChild(cpsValue);
+  const durationLabel = document.createElement('span');
+  durationLabel.className = 'subtitle-duration';
+  durationLabel.textContent = metrics.duration.toFixed(2) + 's';
 
   header.appendChild(indexLabel);
   header.appendChild(timeLabel);
-  header.appendChild(cpsBadge);
+  header.appendChild(durationLabel);
 
-  // Alt satır: metin + karakter sayacı
+  // Orta satır: metin + karakter sayacı
   const body = document.createElement('div');
   body.className = 'subtitle-card-body';
 
@@ -542,8 +614,29 @@ function createSubtitleCard(sub, index, metrics) {
   body.appendChild(textPreview);
   body.appendChild(charCount);
 
+  // Alt satır: CPS bar + CPS label
+  const footer = document.createElement('div');
+  footer.className = 'subtitle-card-footer';
+
+  const cpsBarContainer = document.createElement('div');
+  cpsBarContainer.className = 'cps-bar-container';
+  const cpsBarFill = document.createElement('div');
+  const cpsPercent = Math.min(100, (metrics.cps / SRT_CONFIG.maxCPS) * 100);
+  cpsBarFill.style.width = cpsPercent + '%';
+  const cpsClass = metrics.cpsStatus === 'error' ? 'cps-fill-error' : metrics.cpsStatus === 'warning' ? 'cps-fill-warning' : 'cps-fill-ok';
+  cpsBarFill.className = 'cps-bar-fill ' + cpsClass;
+  cpsBarContainer.appendChild(cpsBarFill);
+
+  const cpsLabel = document.createElement('span');
+  cpsLabel.className = 'cps-label';
+  cpsLabel.textContent = metrics.cps.toFixed(1) + ' CPS';
+
+  footer.appendChild(cpsBarContainer);
+  footer.appendChild(cpsLabel);
+
   card.appendChild(header);
   card.appendChild(body);
+  card.appendChild(footer);
 
   // Tıklama event
   card.addEventListener('click', () => {
@@ -1620,9 +1713,11 @@ function renderCustomTemplates() {
 function toggleSettings() {
   const panel = document.getElementById('settingsPanel');
   if (!panel) return;
-  const isVisible = panel.style.display !== 'none';
-  panel.style.display = isVisible ? 'none' : 'flex';
-  if (!isVisible) {
+  const isVisible = panel.classList.contains('visible');
+  if (isVisible) {
+    panel.classList.remove('visible');
+  } else {
+    panel.classList.add('visible');
     syncSettingsUI();
     loadCustomTemplates();
   }
@@ -1780,10 +1875,10 @@ function initEditArea() {
   const btnEndMinus = document.getElementById('btnEndMinus');
   const btnEndPlus = document.getElementById('btnEndPlus');
 
-  if (btnStartMinus) btnStartMinus.addEventListener('click', () => updateTiming('start', -0.1));
-  if (btnStartPlus) btnStartPlus.addEventListener('click', () => updateTiming('start', 0.1));
-  if (btnEndMinus) btnEndMinus.addEventListener('click', () => updateTiming('end', -0.1));
-  if (btnEndPlus) btnEndPlus.addEventListener('click', () => updateTiming('end', 0.1));
+  if (btnStartMinus) btnStartMinus.addEventListener('click', (e) => updateTiming('start', e.shiftKey ? -0.5 : -0.1));
+  if (btnStartPlus) btnStartPlus.addEventListener('click', (e) => updateTiming('start', e.shiftKey ? 0.5 : 0.1));
+  if (btnEndMinus) btnEndMinus.addEventListener('click', (e) => updateTiming('end', e.shiftKey ? -0.5 : -0.1));
+  if (btnEndPlus) btnEndPlus.addEventListener('click', (e) => updateTiming('end', e.shiftKey ? 0.5 : 0.1));
 
   // Zamanlama input'ları — change event
   const editStartTime = document.getElementById('editStartTime');

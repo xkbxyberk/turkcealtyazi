@@ -55,15 +55,35 @@ let lastSrtPath = null; // Son oluşturulan SRT dosya yolu
 function showPage(pageName) {
   const pageCreate = document.getElementById('page-create');
   const pageEditor = document.getElementById('page-editor');
-  if (pageName === 'editor') {
-    pageCreate.style.display = 'none';
-    pageEditor.style.display = 'flex';
-    startPlayheadSync();
-  } else {
-    pageCreate.style.display = 'block';
-    pageEditor.style.display = 'none';
-    stopPlayheadSync();
-  }
+
+  const outgoing = pageName === 'editor' ? pageCreate : pageEditor;
+  const incoming = pageName === 'editor' ? pageEditor : pageCreate;
+
+  // Fade-out current page
+  outgoing.classList.add('page-fade-out');
+
+  setTimeout(() => {
+    outgoing.style.display = 'none';
+    outgoing.classList.remove('page-fade-out');
+
+    incoming.style.display = 'flex';
+    incoming.classList.add('page-fade-out');
+
+    // Force reflow then fade-in
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        incoming.classList.remove('page-fade-out');
+        incoming.classList.add('page-fade-in');
+        setTimeout(() => incoming.classList.remove('page-fade-in'), 200);
+      });
+    });
+
+    if (pageName === 'editor') {
+      startPlayheadSync();
+    } else {
+      stopPlayheadSync();
+    }
+  }, 150);
 }
 
 // =====================================================================
@@ -177,19 +197,22 @@ async function updateServerStatus() {
   const connected = await checkServerHealth();
   serverConnected = connected;
 
+  const statusDetailEl = document.getElementById("statusDetail");
   if (connected) {
     statusDot.className = "status-dot connected";
     statusBadge.className = "status-badge connected";
-    statusLabel.textContent = "Bağlı";
+    statusLabel.textContent = "Sunucu OK";
+    if (statusDetailEl) statusDetailEl.textContent = "8787 \u00B7 v3";
     serverHelpSection.classList.add("hidden");
     btnLaunchServer.disabled = false;
-    btnLaunchServer.textContent = "Sunucuyu Başlat";
+    btnLaunchServer.textContent = "Sunucuyu Ba\u015Flat";
   } else {
     statusDot.classList.remove("connected");
     statusBadge.classList.remove("connected");
     if (!statusDot.classList.contains("launching")) {
-      statusLabel.textContent = "Bağlantı yok";
+      statusLabel.textContent = "Sunucu Yok";
     }
+    if (statusDetailEl) statusDetailEl.textContent = "";
     serverHelpSection.classList.remove("hidden");
   }
 }
@@ -271,12 +294,35 @@ function stopTimer() {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
 }
 
+function updateProgressSteps(activeStep) {
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById('step' + i);
+    if (!el) continue;
+    const numEl = el.querySelector('.step-number');
+    el.classList.remove('active', 'completed');
+    if (i < activeStep) {
+      el.classList.add('completed');
+      if (numEl) numEl.textContent = '\u2713';
+    } else if (i === activeStep) {
+      el.classList.add('active');
+      if (numEl) numEl.textContent = String(i);
+    } else {
+      if (numEl) numEl.textContent = String(i);
+    }
+  }
+}
+
 function showProgress(text, value) {
   actionSection.classList.add("hidden");
   progressSection.classList.add("active");
   progressLabel.textContent = text;
   progressFill.style.width = value + "%";
   progressPercent.textContent = value + "%";
+
+  // Adım göstergesi güncelle
+  if (value <= 20) updateProgressSteps(1);
+  else if (value <= 75) updateProgressSteps(2);
+  else updateProgressSteps(3);
 }
 
 function hideProgress() {
@@ -300,6 +346,10 @@ function hideResult() {
   resultTitle.textContent = "";
   resultDetail.textContent = "";
   resultFile.textContent = "";
+  const resultMetrics = document.getElementById('resultMetrics');
+  if (resultMetrics) resultMetrics.style.display = 'none';
+  const btnEditor = document.getElementById('btnOpenEditor');
+  if (btnEditor) btnEditor.style.display = 'none';
 }
 
 // =====================================================================
@@ -577,9 +627,37 @@ async function handleGenerate() {
 
     setTimeout(async () => {
       hideProgress();
-      showResult("success", "Altyazı oluşturuldu", detailParts.join("\n"), srtFileName);
+      showResult("success", "Altyaz\u0131 Haz\u0131r", detailParts.join("\n"), srtFileName);
+
+      // Metrikleri doldur
+      const resultMetrics = document.getElementById('resultMetrics');
+      const metricBlocks = document.getElementById('metricBlocks');
+      const metricDuration = document.getElementById('metricDuration');
+      const metricCPS = document.getElementById('metricCPS');
+      if (resultMetrics) resultMetrics.style.display = 'flex';
+      if (metricBlocks) metricBlocks.textContent = String(segments.length);
+
+      // S\u00fcre hesapla
+      if (metricDuration && segments.length > 0) {
+        const lastSeg = segments[segments.length - 1];
+        const totalSec = lastSeg.t1 != null ? lastSeg.t1 / 1000 : (lastSeg.end || 0);
+        const mins = Math.floor(totalSec / 60);
+        const secs = Math.floor(totalSec % 60);
+        metricDuration.textContent = mins + ':' + String(secs).padStart(2, '0');
+      }
+
+      // Ortalama CPS hesapla
+      if (metricCPS) {
+        const srtText = srtContent || '';
+        const totalChars = srtText.replace(/\d+\n[\d:,\s\-\>]+\n/g, '').replace(/\n\n/g, '').replace(/\n/g, ' ').length;
+        const lastSeg = segments[segments.length - 1];
+        const totalDur = lastSeg.t1 != null ? lastSeg.t1 / 1000 : (lastSeg.end || 1);
+        const avgCps = totalDur > 0 ? (totalChars / totalDur) : 0;
+        metricCPS.textContent = avgCps.toFixed(1);
+      }
+
       const btnEditor = document.getElementById('btnOpenEditor');
-      if (btnEditor) btnEditor.style.display = 'inline-block';
+      if (btnEditor) btnEditor.style.display = 'block';
       showPage('editor');
       await loadSRT(lastSrtPath);
     }, 800);

@@ -326,6 +326,26 @@ Kelime kelime animasyon için potansiyel yaklaşımlar:
 - [x] editor.js: Kaydedilmemiş değişiklik göstergesi eklendi (Kaydet butonunda turuncu nokta)
 - [x] manifest.json: minVersion 25.1.0 → 25.6.0
 
+## UI/UX İyileştirmeler (v1.2)
+- [x] CSS tasarım token sistemi (yüzey katmanları, renk hiyerarşisi, tipografi skalası, aralık sistemi)
+- [x] Sayfa geçiş animasyonu (fade)
+- [x] Header: Sunucu durumu büyütülmüş, pulse animasyonu, "Sunucu OK" / "Sunucu Yok"
+- [x] Sequence: Boş durum iyileştirilmiş (ikon + açıklama + ipucu)
+- [x] Ana buton: Gradient, glow, hover/active efektleri, 48px yükseklik
+- [x] İlerleme: 3 adımlı gösterge (Ses → Transkripsiyon → SRT)
+- [x] Sonuç kartı: 3 metrik kutusu (blok, süre, CPS) + büyük düzenle butonu
+- [x] Sunucu yardım: Basitleştirilmiş, ortalanmış tasarım, ikon + açıklama
+- [x] Altyazı kartları: CPS mini progress bar, hover/seçim animasyonları, gradient arka plan
+- [x] Düzenleme alanı: Büyütülmüş zamanlama butonları (32px), Shift+tıklama ±500ms, metin aksiyon butonları
+- [x] Araç çubuğu: Filtre badge'leri (eşleşme sayısı), toplam altyazı sayacı
+- [x] Editor header: Altyazı bilgisi, kaydedilmemiş değişiklik noktası (●)
+- [x] Toast mesajları: Animasyonlu giriş/çıkış, ikon + mesaj
+- [x] Boş durumlar: İkon + açıklama + ipucu
+- [x] Klavye kısayol ipuçları satırı
+- [x] Genel: Scrollbar (5px ince), focus ring (accent glow), dropdown animasyonu
+- [x] Ayarlar paneli: Slide-in panel (%70 genişlik, transform animasyonu)
+- [x] Footer: "large-v3 · Core ML" bilgisi
+
 ## Araştırma Referansları
 - `docs/Segmentasyon_Arastirma_Referans.md` — İki Deep Research raporunun sentezi
 - `docs/srt_v2_yeniden_yazim_plani.md` — srt.js v2 detaylı teknik plan

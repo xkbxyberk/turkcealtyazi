@@ -13,11 +13,11 @@
     <header class="header-bar">
       <div class="header-left">
         <span class="header-title">TürkçeAltyazı</span>
-        <span class="header-version">v1.0</span>
       </div>
       <div class="status-badge" id="statusBadge">
         <span class="status-dot" id="statusDot"></span>
         <span class="status-label" id="statusLabel">Kontrol ediliyor</span>
+        <span class="status-detail" id="statusDetail"></span>
       </div>
     </header>
 
@@ -29,7 +29,9 @@
         <div class="sequence-meta" id="sequenceMeta"></div>
       </div>
       <div class="sequence-empty" id="sequenceEmpty">
-        Bir sequence açın
+        <div class="empty-icon">&#127916;</div>
+        <div class="empty-text">Premiere Pro'da bir sequence a&#231;&#305;n</div>
+        <div class="empty-hint">A&#231;&#305;k sequence otomatik alg&#305;lan&#305;r</div>
       </div>
     </section>
 
@@ -53,6 +55,22 @@
 
     <!-- 5. İlerleme Alanı -->
     <section class="progress-section" id="progressSection">
+      <div class="progress-steps" id="progressSteps">
+        <div class="progress-step active" id="step1">
+          <span class="step-number">1</span>
+          <span class="step-label">Ses Okunuyor</span>
+        </div>
+        <div class="progress-step-divider"></div>
+        <div class="progress-step" id="step2">
+          <span class="step-number">2</span>
+          <span class="step-label">Transkripsiyon</span>
+        </div>
+        <div class="progress-step-divider"></div>
+        <div class="progress-step" id="step3">
+          <span class="step-number">3</span>
+          <span class="step-label">SRT Olu&#351;turuluyor</span>
+        </div>
+      </div>
       <div class="progress-label" id="progressLabel">Hazırlanıyor...</div>
       <div class="progress-track">
         <div class="progress-fill" id="progressFill"></div>
@@ -66,28 +84,45 @@
     <!-- 6. Sonuç / Mesaj Alanı -->
     <div class="result-card" id="resultCard">
       <div class="result-title" id="resultTitle"></div>
+      <div class="result-metrics" id="resultMetrics" style="display:none">
+        <div class="metric-box">
+          <span class="metric-value" id="metricBlocks">&mdash;</span>
+          <span class="metric-label">blok</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-value" id="metricDuration">&mdash;</span>
+          <span class="metric-label">s&#252;re</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-value" id="metricCPS">&mdash;</span>
+          <span class="metric-label">ort. CPS</span>
+        </div>
+      </div>
       <div class="result-detail" id="resultDetail"></div>
       <div class="result-file" id="resultFile"></div>
-      <button class="btn-secondary btn-open-editor" id="btnOpenEditor" style="display:none; margin-top:8px;">Düzenle</button>
+      <button class="btn-edit-result" id="btnOpenEditor" style="display:none">D&#252;zenle &rarr;</button>
     </div>
 
     <!-- 7. Sunucu Yardım Alanı -->
     <section class="server-help" id="serverHelpSection">
-      <div class="server-help-title">Sunucu başlatılmadı</div>
-      <div class="server-help-desc">Terminal'de şu komutu çalıştırın:</div>
-      <div class="command-block">
-        <code id="serverCommand">~/Developer/turkcealtyazi/companion-app/start-server.sh</code>
+      <div class="server-help-icon">&#9889;</div>
+      <div class="server-help-title">Sunucu ba&#351;lat&#305;lmad&#305;</div>
+      <div class="server-help-desc">
+        Altyaz&#305; olu&#351;turmak i&#231;in whisper sunucusunun &#231;al&#305;&#351;mas&#305; gerekiyor.
       </div>
       <div class="server-help-actions">
-        <button class="btn-secondary" id="btnLaunchServer">Sunucuyu Başlat</button>
+        <button class="btn-launch" id="btnLaunchServer">Sunucuyu Ba&#351;lat</button>
         <button class="btn-ghost" id="btnCopyCommand">Komutu Kopyala</button>
+      </div>
+      <div class="server-help-command">
+        <code id="serverCommand">~/Developer/turkcealtyazi/companion-app/start-server.sh</code>
       </div>
     </section>
 
     <!-- 8. Footer -->
     <footer class="footer-bar">
       <span>localhost:8787</span>
-      <span>large-v3</span>
+      <span>large-v3 &middot; Core ML</span>
     </footer>
 
   </div><!-- /page-create -->
@@ -99,13 +134,16 @@
     <header class="header-bar editor-header">
       <div class="header-left">
         <button class="btn-ghost btn-back" id="btnBackToCreate">&larr; Geri</button>
-        <span class="header-title">Düzenle</span>
+        <div class="editor-title-group">
+          <span class="header-title">D&#252;zenle<span class="unsaved-dot" id="unsavedDot" style="display:none"> &#9679;</span></span>
+          <span class="editor-subtitle-info" id="editorSubInfo"></span>
+        </div>
       </div>
       <button class="btn-ghost btn-settings" id="btnSettings">&#9881; Ayarlar</button>
     </header>
 
     <!-- Ayarlar Paneli (Overlay) -->
-    <div id="settingsPanel" class="settings-panel" style="display:none">
+    <div id="settingsPanel" class="settings-panel">
       <div class="settings-header">
         <span class="settings-title">Ayarlar</span>
         <button class="btn-ghost btn-settings-close" id="btnSettingsClose">&times;</button>
@@ -214,12 +252,13 @@
 
     <!-- Araç Çubuğu -->
     <div class="editor-toolbar" id="toolbar">
-      <input type="text" class="toolbar-search" id="searchInput" placeholder="Altyazılarda ara..." />
-      <button class="toolbar-btn" id="btnFilterCPS" title="CPS>20 filtrele">⚠ CPS&gt;20</button>
-      <button class="toolbar-btn" id="btnFilterLine" title=">42 karakter filtrele">📏 &gt;42ch</button>
+      <input type="text" class="toolbar-search" id="searchInput" placeholder="Ara..." />
+      <button class="toolbar-btn" id="btnFilterCPS" title="CPS>20 filtrele">CPS&gt;20 <span class="filter-badge" id="badgeCPS"></span></button>
+      <button class="toolbar-btn" id="btnFilterLine" title=">42 karakter filtrele">&gt;42ch <span class="filter-badge" id="badgeLine"></span></button>
       <div class="toolbar-spacer"></div>
-      <button class="toolbar-btn" id="btnUndo" title="Geri Al">↩</button>
-      <button class="toolbar-btn" id="btnRedo" title="Yinele">↪</button>
+      <button class="toolbar-btn" id="btnUndo" title="Geri Al (Ctrl+Z)">&larr;</button>
+      <button class="toolbar-btn" id="btnRedo" title="Yinele (Ctrl+Y)">&rarr;</button>
+      <span class="subtitle-counter" id="subtitleCounter"></span>
     </div>
 
     <!-- Altyazı Listesi -->
@@ -227,18 +266,28 @@
 
     <!-- Düzenleme Alanı -->
     <div class="editor-edit-area" id="editArea">
-      <div class="edit-empty" id="editEmpty">Bir altyazı seçin</div>
+      <div class="edit-empty" id="editEmpty">
+        <div class="empty-hint">D&#252;zenlemek i&#231;in listeden bir altyaz&#305; se&#231;in</div>
+      </div>
       <div class="edit-content" id="editContent">
         <textarea id="editText" rows="3" placeholder="Altyazı metni..."></textarea>
         <div class="timing-row">
-          <label class="timing-label">Başlangıç:</label>
-          <button class="timing-btn" id="btnStartMinus">&#9664;</button>
-          <input type="text" class="timing-input" id="editStartTime" value="00:00:00,000" />
-          <button class="timing-btn" id="btnStartPlus">&#9654;</button>
-          <label class="timing-label">Bitiş:</label>
-          <button class="timing-btn" id="btnEndMinus">&#9664;</button>
-          <input type="text" class="timing-input" id="editEndTime" value="00:00:00,000" />
-          <button class="timing-btn" id="btnEndPlus">&#9654;</button>
+          <div class="timing-group">
+            <label class="timing-label">Ba&#351;lang&#305;&#231;</label>
+            <div class="timing-controls">
+              <button class="timing-btn" id="btnStartMinus" title="&#8722;100ms (Shift: &#8722;500ms)">&#8722;</button>
+              <input type="text" class="timing-input" id="editStartTime" value="00:00:00,000" />
+              <button class="timing-btn" id="btnStartPlus" title="+100ms (Shift: +500ms)">+</button>
+            </div>
+          </div>
+          <div class="timing-group">
+            <label class="timing-label">Biti&#351;</label>
+            <div class="timing-controls">
+              <button class="timing-btn" id="btnEndMinus" title="&#8722;100ms (Shift: &#8722;500ms)">&#8722;</button>
+              <input type="text" class="timing-input" id="editEndTime" value="00:00:00,000" />
+              <button class="timing-btn" id="btnEndPlus" title="+100ms (Shift: +500ms)">+</button>
+            </div>
+          </div>
         </div>
         <div class="info-row">
           <span class="info-item" id="editDuration">Süre: 0.00s</span>
@@ -246,9 +295,9 @@
           <span class="info-item" id="editLineInfo">Satır 1: 0/42</span>
         </div>
         <div class="action-row">
-          <button class="action-btn" id="btnSplit">&#9986; Böl</button>
-          <button class="action-btn" id="btnMerge">&#128279; Birleştir</button>
-          <button class="action-btn" id="btnDelete">&#128465; Sil</button>
+          <button class="action-btn action-split" id="btnSplit">B&#246;l</button>
+          <button class="action-btn action-merge" id="btnMerge">Birle&#351;tir</button>
+          <button class="action-btn action-delete" id="btnDelete">Sil</button>
         </div>
       </div>
     </div>
@@ -267,6 +316,11 @@
           <button class="dropdown-item" data-format="txt">TXT (Düz Metin)</button>
         </div>
       </div>
+    </div>
+
+    <!-- Klavye Kısayol İpuçları -->
+    <div class="shortcuts-hint" id="shortcutsHint">
+      Ctrl+Z Geri &middot; Ctrl+Y Yinele &middot; Ctrl+S Kaydet &middot; &uarr;&darr; Gezin &middot; Del Sil
     </div>
 
   </div><!-- /page-editor -->
