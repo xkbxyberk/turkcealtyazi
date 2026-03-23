@@ -571,57 +571,14 @@ async function handleGenerate() {
     await saveFile.write(srtContent, { format: uxpfs.formats.utf8 });
     const srtPath = saveFile.nativePath;
 
-    // 5. Transcript API ile clip'e transkript ekle + SRT'yi projeye import et
-    showProgress("Transkript ekleniyor...", 95);
-    let transcriptImported = false;
+    // 5. Tamamlandı — SRT projeye henüz import edilmez, kullanıcı düzenledikten sonra import edecek
+    showProgress("Tamamlanıyor...", 95);
 
-    try {
-      if (ppro.Transcript && typeof ppro.Transcript.importFromJSON === "function"
-          && typeof ppro.Transcript.createImportTextSegmentsAction === "function") {
-
-        const transcriptJSON = generateAdobeTranscriptJSON(segments);
-        if (transcriptJSON) {
-          const clipProjectItem = await getClipProjectItemForPath(mediaPath || fileName);
-
-          if (clipProjectItem) {
-            try {
-              const textSegments = ppro.Transcript.importFromJSON(transcriptJSON);
-
-              project.lockedAccess(() => {
-                project.executeTransaction((compoundAction) => {
-                  const action = ppro.Transcript.createImportTextSegmentsAction(
-                    textSegments,
-                    clipProjectItem
-                  );
-                  compoundAction.addAction(action);
-                }, "TürkçeAltyazı Transkript Import");
-              });
-
-              transcriptImported = true;
-            } catch (trErr) {
-              console.warn("Transcript import hatası:", trErr.message);
-            }
-          }
-        }
-      }
-
-      if (project && typeof project.importFiles === "function") {
-        await project.importFiles([srtPath], true);
-      }
-    } catch (importErr) {
-      console.warn("Import hatası:", importErr.message);
-    }
-
-    // Tamamlandı
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     showProgress("Tamamlandı!", 100);
 
     const detailParts = [segments.length + " segment · " + elapsed + "s"];
-    if (transcriptImported) {
-      detailParts.push("Transkript clip'e eklendi");
-    } else {
-      detailParts.push("SRT projeye eklendi — timeline'a sürükleyin");
-    }
+    detailParts.push("Düzenleyicide açılıyor...");
 
     lastSrtPath = srtPath;
 

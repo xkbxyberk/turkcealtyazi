@@ -142,6 +142,9 @@
       <button class="btn-ghost btn-settings" id="btnSettings">&#9881; Ayarlar</button>
     </header>
 
+    <!-- Ayarlar Overlay (textarea z-index fix) -->
+    <div id="settingsOverlay" class="settings-overlay"></div>
+
     <!-- Ayarlar Paneli (Overlay) -->
     <div id="settingsPanel" class="settings-panel">
       <div class="settings-header">
@@ -304,16 +307,17 @@
 
     <!-- Alt Araç Çubuğu -->
     <div class="editor-bottom-bar" id="bottomBar">
-      <button class="toolbar-btn" id="btnSaveSRT">💾 Kaydet</button>
-      <button class="toolbar-btn" id="btnReloadSRT">📥 Yeniden Yükle</button>
-      <button class="toolbar-btn" id="btnOffset">⏱ Offset</button>
+      <button class="toolbar-btn" id="btnSaveSRT">Kaydet</button>
+      <button class="toolbar-btn btn-import-project" id="btnImportProject">Projeye Ekle</button>
+      <button class="toolbar-btn" id="btnOffset">Offset</button>
       <div class="toolbar-spacer"></div>
+      <button class="toolbar-btn" id="btnReloadSRT">Yenile</button>
       <div class="export-wrapper" id="exportWrapper">
-        <button class="toolbar-btn" id="btnExport">📤 Export ▼</button>
+        <button class="toolbar-btn" id="btnExport">Export &#9660;</button>
         <div class="dropdown-menu" id="exportMenu">
           <button class="dropdown-item" data-format="srt">SRT (SubRip)</button>
           <button class="dropdown-item" data-format="vtt">VTT (WebVTT)</button>
-          <button class="dropdown-item" data-format="txt">TXT (Düz Metin)</button>
+          <button class="dropdown-item" data-format="txt">TXT (D&#252;z Metin)</button>
         </div>
       </div>
     </div>

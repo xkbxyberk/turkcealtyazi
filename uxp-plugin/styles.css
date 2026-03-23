@@ -112,8 +112,8 @@
 body {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  overflow-x: hidden;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* ─── 1. Header Bar ──────────────────────────────────────────────── */
@@ -280,7 +280,7 @@ body {
 
 .prompt-section textarea {
   width: 100%;
-  background: var(--bg-card);
+  background: var(--surface-raised);
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -291,11 +291,14 @@ body {
   min-height: 48px;
   max-height: 120px;
   box-sizing: border-box;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .prompt-section textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-glow);
+  box-shadow: none;
   outline: none;
 }
 
@@ -767,14 +770,19 @@ body {
 #page-create {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   transition: opacity var(--transition-normal);
 }
 
 #page-editor {
   display: none;
   flex-direction: column;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
   transition: opacity var(--transition-normal);
 }
 
@@ -827,7 +835,9 @@ body {
 
 .editor-subtitle-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 8px 16px;
 }
 
@@ -840,11 +850,22 @@ body {
 .editor-bottom-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 40px;
-  padding: 0 16px;
+  padding: 0 12px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+.btn-import-project {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+  font-weight: var(--weight-semibold);
+}
+
+.btn-import-project:hover {
+  background: var(--accent-hover) !important;
 }
 
 .btn-open-editor {
@@ -1059,7 +1080,7 @@ body {
 
 #editText {
   width: 100%;
-  background: var(--bg-card);
+  background: var(--surface-raised);
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1070,10 +1091,14 @@ body {
   resize: none;
   outline: none;
   box-sizing: border-box;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 #editText:focus {
   border-color: var(--accent);
+  box-shadow: none;
 }
 
 .timing-row {
@@ -1105,7 +1130,7 @@ body {
 .timing-input {
   width: 100px;
   height: 28px;
-  background: var(--bg-card);
+  background: var(--surface-raised);
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1115,10 +1140,14 @@ body {
   text-align: center;
   outline: none;
   font-variant-numeric: tabular-nums;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .timing-input:focus {
   border-color: var(--accent);
+  box-shadow: none;
 }
 
 .timing-input.overlap {
@@ -1226,13 +1255,16 @@ body {
   flex: 1;
   max-width: 160px;
   height: 28px;
-  background: var(--bg-card);
+  background: var(--surface-raised);
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0 8px;
   font-family: inherit;
   font-size: 11px;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
   outline: none;
 }
 
@@ -1422,6 +1454,22 @@ body {
 .btn-settings {
   font-size: 12px;
   padding: 0 8px;
+}
+
+/* Ayarlar paneli arkası overlay — textarea z-index sorununu çözer */
+.settings-overlay {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 199;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.settings-overlay.visible {
+  display: block;
 }
 
 .settings-panel {

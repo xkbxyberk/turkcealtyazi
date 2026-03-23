@@ -1155,6 +1155,46 @@ async function reloadSRT() {
   await loadSRT(editorState.srtFilePath);
 }
 
+// ─── Projeye Import ──────────────────────────────────────────────────────────
+
+/**
+ * Mevcut SRT dosyasını Premiere Pro projesine import eder.
+ * Önce kaydedilmemiş değişiklikler varsa kaydeder.
+ */
+async function importToProject() {
+  if (!editorState.srtFilePath || editorState.subtitles.length === 0) {
+    showEditorMessage('Import edilecek altyazı yok.', 'warning');
+    return;
+  }
+
+  try {
+    // Kaydedilmemiş değişiklik varsa önce kaydet
+    if (editorState.isModified) {
+      await saveSRT();
+    }
+
+    const ppro = require("premierepro");
+    const project = await ppro.Project.getActiveProject();
+    if (!project || typeof project.importFiles !== "function") {
+      showEditorMessage('Premiere Pro projesi bulunamadı.', 'error');
+      return;
+    }
+
+    await project.importFiles([editorState.srtFilePath], true);
+    showEditorMessage('SRT projeye import edildi — timeline\'a sürükleyin.', 'info');
+
+    const btn = document.getElementById('btnImportProject');
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '\u2713 Import Edildi';
+      setTimeout(() => { btn.textContent = orig; }, 2000);
+    }
+  } catch (e) {
+    console.error("importToProject hatası:", e.message);
+    showEditorMessage('Import hatası: ' + e.message, 'error');
+  }
+}
+
 // ─── Offset ──────────────────────────────────────────────────────────────────
 
 /**
@@ -1712,12 +1752,29 @@ function renderCustomTemplates() {
  */
 function toggleSettings() {
   const panel = document.getElementById('settingsPanel');
+  const overlay = document.getElementById('settingsOverlay');
+  const editArea = document.getElementById('editArea');
+  const toolbar = document.getElementById('toolbar');
+  const bottomBar = document.getElementById('bottomBar');
+  const shortcutsHint = document.getElementById('shortcutsHint');
   if (!panel) return;
   const isVisible = panel.classList.contains('visible');
   if (isVisible) {
     panel.classList.remove('visible');
+    if (overlay) overlay.classList.remove('visible');
+    // Gizlenen alanları geri göster
+    if (editArea) editArea.style.display = '';
+    if (toolbar) toolbar.style.display = '';
+    if (bottomBar) bottomBar.style.display = '';
+    if (shortcutsHint) shortcutsHint.style.display = '';
   } else {
     panel.classList.add('visible');
+    if (overlay) overlay.classList.add('visible');
+    // Textarea/input içeren alanları gizle — UXP native render z-index sorunu
+    if (editArea) editArea.style.display = 'none';
+    if (toolbar) toolbar.style.display = 'none';
+    if (bottomBar) bottomBar.style.display = 'none';
+    if (shortcutsHint) shortcutsHint.style.display = 'none';
     syncSettingsUI();
     loadCustomTemplates();
   }
@@ -1732,6 +1789,9 @@ function initSettingsPanel() {
 
   const btnClose = document.getElementById('btnSettingsClose');
   if (btnClose) btnClose.addEventListener('click', toggleSettings);
+
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  if (settingsOverlay) settingsOverlay.addEventListener('click', toggleSettings);
 
   // Font ailesi
   const fontFamily = document.getElementById('settingFontFamily');
@@ -1923,6 +1983,9 @@ function initEditArea() {
 
   const btnOffsetBtn = document.getElementById('btnOffset');
   if (btnOffsetBtn) btnOffsetBtn.addEventListener('click', toggleOffsetDialog);
+
+  const btnImportProject = document.getElementById('btnImportProject');
+  if (btnImportProject) btnImportProject.addEventListener('click', importToProject);
 
   const btnExport = document.getElementById('btnExport');
   if (btnExport) btnExport.addEventListener('click', toggleExportMenu);
