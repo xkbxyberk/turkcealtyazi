@@ -15,6 +15,7 @@ fi
 
 # Arka planda başlat, logları dosyaya yaz
 nohup "$SERVER" -m "$MODEL" -l tr --port $PORT --convert \
+  --beam-size 1 \
   --vad --vad-model "$VAD_MODEL" > "$SCRIPT_DIR/server.log" 2>&1 &
 echo $! > "$SCRIPT_DIR/server.pid"
 echo "whisper-server başlatıldı (PID: $!)"

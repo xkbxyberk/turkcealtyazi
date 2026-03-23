@@ -162,7 +162,56 @@ body {
   display: none;
 }
 
-/* ─── 3. Ana Buton Alanı ─────────────────────────────────────────── */
+/* ─── 3. Özel Terimler ───────────────────────────────────────────── */
+
+.prompt-section {
+  padding: 0 16px;
+  margin-bottom: 12px;
+}
+
+.prompt-section textarea {
+  width: 100%;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 48px;
+  max-height: 120px;
+  box-sizing: border-box;
+}
+
+.prompt-section textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.prompt-section textarea::placeholder {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.prompt-hint {
+  text-align: right;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ─── 4. Ana Buton Alanı ─────────────────────────────────────────── */
 
 .action-section {
   padding: 4px 16px 20px;
@@ -434,4 +483,968 @@ body {
   color: var(--text-secondary);
   opacity: 0.6;
   flex-shrink: 0;
+}
+
+/* ─── 8. Düzenleme Sayfası (Faz 3) ──────────────────────────────── */
+
+#page-create {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+#page-editor {
+  display: none;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.editor-header {
+  flex-shrink: 0;
+}
+
+.btn-back {
+  font-size: 12px;
+  padding: 0 8px;
+  margin-right: 4px;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.editor-subtitle-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+}
+
+.editor-edit-area {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.editor-bottom-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.btn-open-editor {
+  width: 100%;
+}
+
+/* ─── 9. Altyazı Listesi Kartları ──────────────────────────────────── */
+
+#subtitleList {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+#subtitleList::-webkit-scrollbar {
+  width: 6px;
+}
+
+#subtitleList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#subtitleList::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.editor-empty {
+  text-align: center;
+  padding: 24px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.subtitle-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.subtitle-card:hover {
+  background: #333333;
+}
+
+.subtitle-card.selected {
+  border-color: var(--accent);
+  background: #1a2a3a;
+}
+
+.subtitle-card.playhead-active {
+  background: #1a3a2a;
+  border-left: 3px solid var(--success, #4caf50);
+}
+
+.subtitle-card.playhead-active.selected {
+  background: #1a3a2a;
+  border-color: var(--success, #4caf50);
+  border-left: 3px solid var(--success, #4caf50);
+}
+
+.subtitle-card.has-warning {
+  border-left: 3px solid var(--warning);
+}
+
+.subtitle-card.has-error {
+  border-left: 3px solid var(--error);
+}
+
+.subtitle-card.selected.has-warning {
+  border-left: 3px solid var(--warning);
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.subtitle-card.selected.has-error {
+  border-left: 3px solid var(--error);
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.subtitle-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.subtitle-index {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 24px;
+}
+
+.subtitle-time {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+}
+
+.cps-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cps-badge {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.cps-ok {
+  background: var(--success);
+}
+
+.cps-warning {
+  background: var(--warning);
+}
+
+.cps-error {
+  background: var(--error);
+}
+
+.cps-value {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.subtitle-card-body {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.subtitle-text {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  white-space: pre-line;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.char-count {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.char-count.over42 {
+  color: var(--warning);
+}
+
+.char-count.over45 {
+  color: var(--error);
+}
+
+/* ─── 10. Düzenleme Alanı ──────────────────────────────────────────── */
+
+.edit-empty {
+  text-align: center;
+  padding: 16px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.edit-content {
+  display: none;
+}
+
+#editText {
+  width: 100%;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+#editText:focus {
+  border-color: var(--accent);
+}
+
+.timing-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.timing-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.timing-input {
+  width: 100px;
+  height: 28px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 6px;
+  font-family: "Source Code Pro", "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  text-align: center;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.timing-input:focus {
+  border-color: var(--accent);
+}
+
+.timing-input.overlap {
+  border-color: var(--error);
+  background: rgba(215, 55, 63, 0.1);
+}
+
+.timing-btn {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.timing-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.timing-btn:active {
+  background: #444444;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.info-item.info-warning {
+  color: var(--warning);
+}
+
+.info-item.info-error {
+  color: var(--error);
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.action-btn {
+  flex: 1;
+  height: 32px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  outline: none;
+}
+
+.action-btn:hover {
+  background: var(--border);
+}
+
+.action-btn:active {
+  background: #444444;
+}
+
+/* ─── 11. Araç Çubukları ──────────────────────────────────────────── */
+
+.toolbar-search {
+  flex: 1;
+  max-width: 160px;
+  height: 28px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+}
+
+.toolbar-search:focus {
+  border-color: var(--accent);
+}
+
+.toolbar-search::placeholder {
+  color: var(--text-secondary);
+}
+
+.toolbar-btn {
+  height: 28px;
+  padding: 0 8px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  outline: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.toolbar-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.toolbar-btn:active {
+  background: #444444;
+}
+
+.toolbar-btn.active {
+  background: var(--accent);
+  color: #FFFFFF;
+  border-color: var(--accent);
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+/* ─── 12. Export Dropdown ──────────────────────────────────────────── */
+
+.export-wrapper {
+  position: relative;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 4px;
+  background: #2A2A2A;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 140px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dropdown-menu.visible {
+  display: block;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  font-family: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  outline: none;
+}
+
+.dropdown-item:hover {
+  background: var(--border);
+}
+
+/* ─── 13. Offset Dialog ───────────────────────────────────────────── */
+
+.offset-dialog {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+
+.offset-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.offset-input {
+  width: 90px;
+  height: 28px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font-family: "Source Code Pro", "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  text-align: center;
+  outline: none;
+}
+
+.offset-input:focus {
+  border-color: var(--accent);
+}
+
+.offset-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* ─── 14. Arama Vurgulama ─────────────────────────────────────────── */
+
+.search-highlight {
+  background: rgba(74, 159, 237, 0.3);
+  color: var(--text-primary);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ─── 15. Ayarlar Paneli ──────────────────────────────────────────── */
+
+.btn-settings {
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.settings-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  background: var(--bg-panel);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.settings-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.btn-settings-close {
+  font-size: 18px;
+  padding: 0 6px;
+  line-height: 1;
+}
+
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.settings-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-body::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.settings-section {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-section:last-child {
+  border-bottom: none;
+}
+
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.settings-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  margin-top: 8px;
+}
+
+.settings-select {
+  width: 100%;
+  height: 28px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+  cursor: pointer;
+}
+
+.settings-select:focus {
+  border-color: var(--accent);
+}
+
+.settings-range {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  margin: 6px 0;
+}
+
+.settings-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.settings-toggles {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.style-toggle {
+  width: 32px;
+  height: 28px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  outline: none;
+}
+
+.style-toggle.italic {
+  font-style: italic;
+}
+
+.style-toggle.underline {
+  text-decoration: underline;
+}
+
+.style-toggle:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.style-toggle.active {
+  background: var(--accent);
+  color: #FFFFFF;
+  border-color: var(--accent);
+}
+
+/* Renk Presetleri */
+
+.color-presets {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.color-preset {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+  outline: none;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  padding: 0;
+}
+
+.color-preset:hover {
+  transform: scale(1.15);
+}
+
+.color-preset.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.settings-color-input {
+  width: 100%;
+  height: 28px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font-family: "Source Code Pro", "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  outline: none;
+}
+
+.settings-color-input:focus {
+  border-color: var(--accent);
+}
+
+/* Pozisyon Toggle */
+
+.position-toggles {
+  display: flex;
+  gap: 4px;
+}
+
+.position-btn {
+  flex: 1;
+  height: 28px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  outline: none;
+}
+
+.position-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.position-btn.active {
+  background: var(--accent);
+  color: #FFFFFF;
+  border-color: var(--accent);
+}
+
+/* Şablon Kartları */
+
+.template-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.template-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.template-card:hover {
+  border-color: var(--accent);
+  background: #333333;
+}
+
+.template-card.active {
+  border-color: var(--accent);
+  background: rgba(74, 159, 237, 0.1);
+}
+
+.template-preview {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border-radius: 3px;
+  margin-bottom: 6px;
+}
+
+.youtube-preview {
+  background: #000;
+  color: #FFF;
+  font-family: Arial, sans-serif;
+  text-shadow: 1px 1px 2px #000;
+}
+
+.tiktok-preview {
+  background: linear-gradient(135deg, #333, #555);
+  color: #FFF;
+  font-family: Arial, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+.sinema-preview {
+  background: transparent;
+  color: #FFF;
+  font-family: Georgia, serif;
+  font-size: 11px;
+}
+
+.netflix-preview {
+  background: rgba(0,0,0,0.8);
+  color: #FFF;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+}
+
+.template-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.template-desc {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Özel Şablonlar */
+
+.custom-templates-section {
+  margin-top: 12px;
+}
+
+.custom-template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.custom-template-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+}
+
+.custom-template-item:hover {
+  border-color: var(--accent);
+}
+
+.custom-template-item-name {
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.custom-template-item-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+  outline: none;
+}
+
+.custom-template-item-delete:hover {
+  color: var(--error);
+}
+
+.save-template-row {
+  display: flex;
+  gap: 6px;
+}
+
+.settings-input {
+  flex: 1;
+  height: 28px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+}
+
+.settings-input:focus {
+  border-color: var(--accent);
+}
+
+/* ─── 16. Editor Toast Mesajları ──────────────────────────────────── */
+
+.editor-toast {
+  display: none;
+  padding: 6px 16px;
+  font-size: 11px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: opacity 0.2s ease;
+}
+
+.editor-toast.toast-info {
+  background: rgba(74, 159, 237, 0.12);
+  color: var(--accent);
+  border-bottom: 1px solid rgba(74, 159, 237, 0.2);
+}
+
+.editor-toast.toast-warning {
+  background: rgba(230, 141, 59, 0.12);
+  color: var(--warning);
+  border-bottom: 1px solid rgba(230, 141, 59, 0.2);
+}
+
+.editor-toast.toast-error {
+  background: rgba(215, 55, 63, 0.12);
+  color: var(--error);
+  border-bottom: 1px solid rgba(215, 55, 63, 0.2);
+}
+
+/* ─── 17. Virtual Scroll Spacer ──────────────────────────────────── */
+
+.virtual-spacer {
+  flex-shrink: 0;
+  pointer-events: none;
 }

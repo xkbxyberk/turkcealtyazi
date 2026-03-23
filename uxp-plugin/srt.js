@@ -9,12 +9,67 @@ const SRT_CONFIG = {
   minDuration: 1.0,
   maxDuration: 7.0,
   gapBetweenSubs: 0.1,
+  // v2 eklemeleri
+  targetCPS: 17,
+  maxCPS: 20,
+  minOrphanChars: 5,
+  maxSoftCPL: 45,
+  pauseThreshold: 2.0,
 };
 
-// Türkçe bağlaçlar — yeni satırda başlayabilir
-const TR_CONJUNCTIONS = ["ama", "fakat", "ancak", "çünkü", "ve", "veya", "ya", "ki", "hem", "ne", "ise", "oysa"];
+// ─── Türkçe Sentaktik Sözlükler (v2) ───────────────────────────────────────
 
-// Türkçe kısa ekler — önceki kelimeyle aynı satırda kalmalı
+/** Son çekim edatları — öncesinden ASLA kırılmaz */
+const POSTPOSITIONS = new Set([
+  'için', 'gibi', 'kadar', 'göre', 'doğru', 'karşı', 'rağmen',
+  'beri', 'başka', 'dair', 'ait', 'ile', 'boyunca', 'üzere',
+  'dolayı', 'itibaren', 'önce', 'sonra', 'arasında'
+]);
+
+/** Bağlaçlar — öncesinden kırılır (bağlaç yeni satır/bloğun başında) */
+const CONJUNCTIONS = new Set([
+  'ama', 'fakat', 'lakin', 'ancak', 'yalnız',
+  've', 'veya', 'yahut', 'çünkü', 'oysa', 'oysaki',
+  'madem', 'mademki', 'halbuki', 'üstelik'
+]);
+
+/** Yardımcı fiiller — önceki isimden ASLA ayrılmaz */
+const AUXILIARY_VERBS = new Set([
+  'etmek', 'olmak', 'yapmak', 'kılmak', 'eylemek',
+  'etti', 'oldu', 'yaptı', 'ediyor', 'oluyor', 'yapıyor',
+  'eder', 'olur', 'yapar', 'etmiş', 'olmuş', 'yapmış',
+  'edecek', 'olacak', 'yapacak', 'etmeli', 'olmalı',
+  'edildi', 'olundu', 'yapıldı', 'edebilir', 'olabilir',
+  'etmekte', 'olmakta', 'edilmek', 'olmaya', 'etmeye'
+]);
+
+/** Kısaltmalar — noktası cümle sonu DEĞİL */
+const ABBREVIATIONS = new Set([
+  'Dr.', 'Prof.', 'Av.', 'Doç.', 'Yrd.', 'Öğr.', 'Gör.',
+  'vb.', 'vs.', 'vd.', 'bkz.', 'çev.', 'yay.',
+  'M.Ö.', 'M.S.', 'Ltd.', 'Şti.', 'A.Ş.',
+  'Org.', 'Gen.', 'Alb.', 'St.', 'Mr.', 'Mrs.'
+]);
+
+/** Zarf-fiil ek kalıpları — sonrasından kırma ödülü */
+const ADVERBIAL_PATTERNS = [
+  /[ıiuü]p$/i,
+  /(ar|er)ak$/i,
+  /m[ae]d[ae]n$/i,
+  /(ınc|inc|unc|ünc)[ae]$/i,
+  /(dığ|diğ|duğ|düğ)[ıiuü]nd[ae]$/i,
+  /[iıuü]?ken$/i,
+];
+
+/** Birim kelimeleri — sayıdan sonra gelince ayrılmaz */
+const UNITS = new Set([
+  'kg', 'km', 'm', 'cm', 'mm', 'lt', 'ml', 'gr',
+  'TL', 'lira', 'kilo', 'metre', 'saat', 'dakika',
+  'saniye', 'yıl', 'ay', 'gün', 'derece'
+]);
+
+// Eski bağlaç/ek listeler (geriye dönük uyumluluk — v2 Set'leri kullanılıyor)
+const TR_CONJUNCTIONS = ["ama", "fakat", "ancak", "çünkü", "ve", "veya", "ya", "ki", "hem", "ne", "ise", "oysa"];
 const TR_SUFFIXES = ["dir", "dır", "tır", "tir", "dur", "dür", "tur", "tür", "dır.", "dir.", "tır.", "tir."];
 
 function formatTimestamp(seconds) {
@@ -69,7 +124,6 @@ function removeHallucinations(segments) {
 
     if (repeatCount >= 3) {
       const removeCount = (repeatCount - 1) * patternLen;
-      console.log("Halüsinasyon tespit: " + patternLen + "-uzunluk pattern, " + repeatCount + " tekrar, " + removeCount + " segment siliniyor");
       segments = segments.slice(0, segments.length - removeCount);
       break;
     }
@@ -142,11 +196,14 @@ function mergeFragmentedWords(segments) {
 /**
  * Tüm segmentlerden düz word listesi çıkarır.
  * Kelimeleri segment süresine eşit dağıtır (word-level timestamps kullanılmıyor).
+ * v2.1: Minimum 100ms/kelime, segment sınırı korunur, segmentId taşınır.
  */
 function extractWords(segments) {
   const allWords = [];
+  const MIN_WORD_DURATION = 0.1; // 100ms minimum
 
-  for (const seg of segments) {
+  for (let segIdx = 0; segIdx < segments.length; segIdx++) {
+    const seg = segments[segIdx];
     const segStart = normalizeTime(seg.t0, seg.start);
     const segEnd = normalizeTime(seg.t1, seg.end);
     const segDuration = segEnd - segStart;
@@ -155,13 +212,21 @@ function extractWords(segments) {
 
     const rawWords = text.split(/\s+/).filter(Boolean);
     if (rawWords.length === 0) continue;
-    const wordDur = segDuration / rawWords.length;
+
+    // Minimum süre kontrolü: her kelimeye en az 100ms gerekli
+    const minTotalDuration = rawWords.length * MIN_WORD_DURATION;
+    const effectiveDuration = Math.max(segDuration, minTotalDuration);
+    const wordDur = effectiveDuration / rawWords.length;
 
     for (let i = 0; i < rawWords.length; i++) {
+      const wStart = segStart + i * wordDur;
+      const wEnd = segStart + (i + 1) * wordDur;
+
       allWords.push({
         text: rawWords[i],
-        start: segStart + i * wordDur,
-        end: segStart + (i + 1) * wordDur,
+        start: Math.max(wStart, segStart),          // segment sınırı altına düşme
+        end: Math.min(wEnd, Math.max(segEnd, segStart + effectiveDuration)), // segment sınırı üstüne çıkma
+        segmentId: segIdx,                           // orijinal segment kimliği
       });
     }
   }
@@ -199,47 +264,201 @@ function isTurkishSuffix(word) {
   return TR_SUFFIXES.includes(clean);
 }
 
+// ─── v2 Yardımcı Fonksiyonlar ──────────────────────────────────────────────
+
+/**
+ * Kelimenin sonundaki nokta kısaltma mı yoksa cümle sonu mu?
+ * @param {string} word
+ * @returns {boolean} true ise kısaltma (cümle sonu DEĞİL)
+ */
+function isAbbreviation(word) {
+  if (!word || !word.endsWith('.')) return false;
+  return ABBREVIATIONS.has(word);
+}
+
+/**
+ * Kelime zarf-fiil eki taşıyor mu?
+ * @param {string} word
+ * @returns {boolean}
+ */
+function detectAdverbialSuffix(word) {
+  if (!word || word.length < 3) return false;
+  const clean = word.replace(/[.,?!…;:]+$/, '');
+  if (clean.length < 3) return false;
+  return ADVERBIAL_PATTERNS.some(pattern => pattern.test(clean));
+}
+
+/**
+ * Okuma hızı (CPS) hesaplar.
+ * @param {string} text - Altyazı metni
+ * @param {number} durationSeconds - Süre (saniye)
+ * @returns {{ cps: number, status: 'ok'|'warning'|'error' }}
+ */
+function calculateCPS(text, durationSeconds) {
+  if (!text || durationSeconds <= 0) return { cps: 0, status: 'ok' };
+  const cps = text.length / durationSeconds;
+  let status = 'ok';
+  if (cps > SRT_CONFIG.maxCPS) status = 'error';
+  else if (cps > SRT_CONFIG.targetCPS) status = 'warning';
+  return { cps, status };
+}
+
+/**
+ * Kelime sayı mı kontrol eder.
+ * @param {string} word
+ * @returns {boolean}
+ */
+function isNumber(word) {
+  return /^\d+([.,]\d+)?$/.test(word);
+}
+
+/**
+ * Kırma noktası için ceza puanı hesaplar.
+ * @param {string[]} words - Kelime dizisi
+ * @param {number} breakIndex - Bu kelimeden SONRA kır (0-indexed)
+ * @returns {number} Negatif = iyi, pozitif = kötü
+ */
+function calculatePenalty(words, breakIndex) {
+  if (breakIndex < 0 || breakIndex >= words.length - 1) return Infinity;
+
+  const currentWord = words[breakIndex];
+  const nextWord = words[breakIndex + 1];
+  const cleanNext = nextWord.replace(/[.,?!…;:]+$/, '').toLowerCase();
+  const cleanCurrent = currentWord.replace(/[.,?!…;:]+$/, '').toLowerCase();
+
+  // Sentaktik bütünlük cezaları (+1000)
+  if (POSTPOSITIONS.has(cleanNext)) return 1000;
+  if (AUXILIARY_VERBS.has(cleanNext)) return 1000;
+  if (isNumber(currentWord) && UNITS.has(cleanNext)) return 1000;
+
+  // Orphan cezası (+500)
+  const afterBreak = words.slice(breakIndex + 1).join(' ');
+  const beforeBreak = words.slice(0, breakIndex + 1).join(' ');
+  if (afterBreak.length <= SRT_CONFIG.minOrphanChars && words.length - breakIndex - 1 === 1) return 500;
+  if (beforeBreak.length <= SRT_CONFIG.minOrphanChars && breakIndex === 0) return 500;
+
+  // Ödüller (negatif)
+  if (/[.?!;]$/.test(currentWord) && !isAbbreviation(currentWord)) return -100;
+  if (/,$/.test(currentWord)) return -80;
+  if (detectAdverbialSuffix(currentWord)) return -40;
+  if (CONJUNCTIONS.has(cleanNext)) return -30;
+
+  return 0;
+}
+
+/**
+ * Metin bloğunu 2 satıra bölmek için en iyi noktayı bulur.
+ * @param {string} text - Bölünecek metin
+ * @returns {{ line1: string, line2: string }}
+ */
+function findBestLineBreak(text) {
+  const words = text.split(/\s+/);
+  if (words.length <= 1) return { line1: text, line2: '' };
+
+  let bestScore = Infinity;
+  let bestIndex = Math.floor(words.length / 2) - 1; // fallback: ortadan kır
+
+  for (let i = 0; i < words.length - 1; i++) {
+    const line1 = words.slice(0, i + 1).join(' ');
+    const line2 = words.slice(i + 1).join(' ');
+
+    // maxSoftCPL aşımı kontrolü
+    if (line1.length > SRT_CONFIG.maxSoftCPL || line2.length > SRT_CONFIG.maxSoftCPL) continue;
+
+    let score = calculatePenalty(words, i);
+
+    // Geometrik denge bonusu — satır uzunluk farkı küçük olsun, bottom-heavy tercih
+    const diff = Math.abs(line1.length - line2.length);
+    score -= 5 * (1 - diff / SRT_CONFIG.maxCharsPerLine);
+
+    // Bottom-heavy bonus: alt satır uzunsa küçük ek ödül
+    if (line2.length >= line1.length) score -= 3;
+
+    if (score < bestScore) {
+      bestScore = score;
+      bestIndex = i;
+    }
+  }
+
+  return {
+    line1: words.slice(0, bestIndex + 1).join(' '),
+    line2: words.slice(bestIndex + 1).join(' ')
+  };
+}
+
+/**
+ * Altyazı bloğu metnini 1 veya 2 satıra böler.
+ * @param {string} text - Altyazı metni (satır kırmasız)
+ * @returns {string} 1 veya 2 satırlı metin (\n ile ayrılmış)
+ */
+function splitIntoLines(text) {
+  if (!text) return '';
+
+  // Tek satıra sığıyorsa bölme
+  if (text.length <= SRT_CONFIG.maxCharsPerLine) return text;
+
+  const { line1, line2 } = findBestLineBreak(text);
+  if (!line2) return line1;
+
+  // Her iki satır da maxSoftCPL (45) altındaysa kabul et
+  if (line1.length <= SRT_CONFIG.maxSoftCPL && line2.length <= SRT_CONFIG.maxSoftCPL) {
+    return enforceLineLimit(line1) + '\n' + enforceLineLimit(line2);
+  }
+
+  // >45 ise zorla en yakın boşluktan kır
+  const mid = Math.floor(text.length / 2);
+  let breakPos = text.lastIndexOf(' ', mid);
+  if (breakPos <= 0) breakPos = text.indexOf(' ', mid);
+  if (breakPos <= 0) return enforceLineLimit(text);
+  return enforceLineLimit(text.substring(0, breakPos)) + '\n' + enforceLineLimit(text.substring(breakPos + 1));
+}
+
+/**
+ * Tek satırın maxSoftCPL (45) karakteri kesinlikle geçmemesini sağlar.
+ * Aşarsa en yakın boşluktan keser.
+ */
+function enforceLineLimit(line) {
+  if (!line || line.length <= SRT_CONFIG.maxSoftCPL) return line;
+  // maxSoftCPL'ye kadar olan en yakın boşluğu bul
+  let breakPos = line.lastIndexOf(' ', SRT_CONFIG.maxSoftCPL);
+  if (breakPos <= 0) return line; // Boşluk yoksa kesemeyiz
+  return line.substring(0, breakPos);
+}
+
 /**
  * Word listesini akıllıca SRT bloklarına gruplar.
+ * v2: Kısaltma istisnası, kasıtlı duraklama, CPS kontrolü, penalty-based bağlaç kırma.
  */
 function groupWordsIntoSubtitles(words) {
   if (words.length === 0) return [];
 
   const subtitles = [];
   let currentWords = [];
+  let addEllipsisBefore = false; // Kasıtlı duraklama sonrası "..." ön eki
 
-  function flushSubtitle() {
+  function flushSubtitle(appendEllipsis) {
     if (currentWords.length === 0) return;
 
     const start = currentWords[0].start;
     const end = currentWords[currentWords.length - 1].end;
-    const lines = buildLines(currentWords);
+    let text = currentWords.map(w => w.text).join(' ');
 
-    subtitles.push({ start, end, text: lines.join("\n") });
-    currentWords = [];
-  }
-
-  function buildLines(wordList) {
-    const lines = [""];
-    let li = 0;
-
-    for (let i = 0; i < wordList.length; i++) {
-      const w = wordList[i].text;
-      const candidate = lines[li] ? lines[li] + " " + w : w;
-
-      if (candidate.length > SRT_CONFIG.maxCharsPerLine && lines[li].length > 0) {
-        if (li + 1 < SRT_CONFIG.maxLines) {
-          li++;
-          lines[li] = w;
-        } else {
-          lines[li] += " " + w;
-        }
-      } else {
-        lines[li] = candidate;
-      }
+    // Kasıtlı duraklama: blok sonuna "..." ekle
+    if (appendEllipsis) {
+      text = text + '...';
     }
 
-    return lines.filter(Boolean);
+    // Kasıtlı duraklama: blok başına "..." ekle
+    if (addEllipsisBefore) {
+      text = '...' + text;
+      addEllipsisBefore = false;
+    }
+
+    // splitIntoLines ile satır kırma uygula
+    text = splitIntoLines(text);
+
+    subtitles.push({ start, end, text });
+    currentWords = [];
   }
 
   function currentDuration() {
@@ -248,20 +467,35 @@ function groupWordsIntoSubtitles(words) {
   }
 
   function currentCharCount() {
-    const text = currentWords.map(w => w.text).join(" ");
-    return text.length;
+    return currentWords.map(w => w.text).join(' ').length;
   }
+
+  const MAX_CHARS_PER_BLOCK = SRT_CONFIG.maxCharsPerLine * SRT_CONFIG.maxLines; // 84
 
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
     const nextWord = i + 1 < words.length ? words[i + 1] : null;
 
+    // CPS pre-check: kelimeyi eklemeden ÖNCE CPS kontrol et
+    if (currentWords.length > 0) {
+      const prospectiveText = currentWords.map(w => w.text).join(' ') + ' ' + word.text;
+      const prospectiveStart = currentWords[0].start;
+      const prospectiveEnd = word.end;
+      const prospectiveDuration = prospectiveEnd - prospectiveStart;
+      if (prospectiveDuration > 0) {
+        const prospectiveCPS = prospectiveText.length / prospectiveDuration;
+        if (prospectiveCPS > SRT_CONFIG.maxCPS) {
+          flushSubtitle(false); // Önce mevcut bloğu kapat
+        }
+      }
+    }
+
     currentWords.push(word);
 
     let shouldFlush = false;
 
-    // 1. Cümle sonu — her zaman flush
-    if (isSentenceEnd(word.text)) {
+    // 1. Cümle sonu — kısaltma istisnası ile kontrol
+    if (isSentenceEnd(word.text) && !isAbbreviation(word.text)) {
       shouldFlush = true;
     }
 
@@ -270,49 +504,107 @@ function groupWordsIntoSubtitles(words) {
       shouldFlush = true;
     }
 
-    // 3. Karakter limiti: 2 satırlık max karakter aşıldı
-    if (currentCharCount() >= SRT_CONFIG.maxCharsPerLine * SRT_CONFIG.maxLines) {
+    // 3. Karakter limiti: maxCharsPerBlock (84) aşıldı
+    if (currentCharCount() >= MAX_CHARS_PER_BLOCK) {
       shouldFlush = true;
     }
 
-    // 4. Sonraki kelime bağlaç ise ve yeterli içerik varsa
-    if (nextWord && isConjunction(nextWord.text) && currentWords.length >= 3) {
-      shouldFlush = true;
+    // 4. Sonraki kelime bağlaç ise ve yeterli içerik varsa (v2: CONJUNCTIONS Set)
+    if (nextWord && !shouldFlush) {
+      const cleanNext = nextWord.text.replace(/[.,?!…;:]+$/, '').toLowerCase();
+      if (CONJUNCTIONS.has(cleanNext) && currentWords.length >= 3) {
+        shouldFlush = true;
+      }
     }
 
-    // 5. Sonraki kelime Türkçe kısa ek ise flush'u engelle
-    if (shouldFlush && nextWord && isTurkishSuffix(nextWord.text)) {
-      shouldFlush = false;
+    // 5. Sentaktik bütünlük koruması — sonraki kelime edat/yrd.fiil ise flush'u engelle
+    if (shouldFlush && nextWord) {
+      const cleanNext = nextWord.text.replace(/[.,?!…;:]+$/, '').toLowerCase();
+      if (POSTPOSITIONS.has(cleanNext) || AUXILIARY_VERBS.has(cleanNext)) {
+        // Karakter limiti çok aşılmadıysa koru (maxSoftCPL × 2 = 90)
+        if (currentCharCount() < SRT_CONFIG.maxSoftCPL * SRT_CONFIG.maxLines) {
+          shouldFlush = false;
+        }
+      }
+      // Eski: Türkçe kısa ek kontrolü
+      if (isTurkishSuffix(nextWord.text)) {
+        shouldFlush = false;
+      }
     }
 
-    // 6. Gap kontrolü — sonraki kelime ile arada büyük boşluk varsa
+    // 6. Kasıtlı duraklama tespiti (≥2sn sessizlik)
+    if (nextWord && (nextWord.start - word.end) >= SRT_CONFIG.pauseThreshold) {
+      flushSubtitle(true); // "..." ekle
+      addEllipsisBefore = true;
+      continue;
+    }
+
+    // 7. Segment sınırı gap kontrolü — farklı Whisper segmentlerinden gelen kelimeler
+    //    arasında 300ms+ boşluk varsa blok kapat
+    if (nextWord && nextWord.segmentId !== undefined && word.segmentId !== undefined) {
+      if (nextWord.segmentId !== word.segmentId && (nextWord.start - word.end) >= 0.3) {
+        shouldFlush = true;
+      }
+    }
+
+    // 8. Normal gap kontrolü — sonraki kelime ile arada boşluk varsa
     if (nextWord && (nextWord.start - word.end) > 0.5 && currentWords.length >= 2) {
       shouldFlush = true;
     }
 
     if (shouldFlush) {
-      flushSubtitle();
+      flushSubtitle(false);
     }
   }
 
   // Kalan kelimeleri flush et
-  flushSubtitle();
+  flushSubtitle(false);
+
+  // Post-process: CPS kontrolü — >20 CPS olan blokları böl
+  const cpsChecked = [];
+  for (const sub of subtitles) {
+    const duration = sub.end - sub.start;
+    const plainText = sub.text.replace(/\n/g, ' ');
+    const { status } = calculateCPS(plainText, duration);
+
+    if (status === 'error' && plainText.split(/\s+/).length >= 2) {
+      // CPS çok yüksek — bloğu ikiye böl
+      const allWords = plainText.split(/\s+/);
+      const midIdx = Math.floor(allWords.length / 2);
+      const firstHalf = allWords.slice(0, midIdx).join(' ');
+      const secondHalf = allWords.slice(midIdx).join(' ');
+      const midTime = sub.start + (duration * midIdx / allWords.length);
+
+      cpsChecked.push({
+        start: sub.start,
+        end: midTime,
+        text: splitIntoLines(firstHalf)
+      });
+      cpsChecked.push({
+        start: midTime,
+        end: sub.end,
+        text: splitIntoLines(secondHalf)
+      });
+    } else {
+      cpsChecked.push(sub);
+    }
+  }
 
   // Post-process: minimum süre kontrolü — çok kısa altyazıları birleştir
   const merged = [];
-  for (let i = 0; i < subtitles.length; i++) {
-    const sub = subtitles[i];
+  for (let i = 0; i < cpsChecked.length; i++) {
+    const sub = cpsChecked[i];
     const duration = sub.end - sub.start;
 
     if (duration < SRT_CONFIG.minDuration && merged.length > 0) {
       const prev = merged[merged.length - 1];
-      const combinedText = prev.text + "\n" + sub.text;
-      const combinedLines = combinedText.split("\n");
+      const prevPlain = prev.text.replace(/\n/g, ' ');
+      const subPlain = sub.text.replace(/\n/g, ' ');
+      const combinedPlain = prevPlain + ' ' + subPlain;
 
-      if (combinedLines.length <= SRT_CONFIG.maxLines &&
-          (sub.end - prev.start) <= SRT_CONFIG.maxDuration) {
+      if ((sub.end - prev.start) <= SRT_CONFIG.maxDuration) {
         prev.end = sub.end;
-        prev.text = combinedText;
+        prev.text = splitIntoLines(combinedPlain);
         continue;
       }
     }
@@ -385,6 +677,89 @@ function generateSRT(segments) {
  * @param {Array} segments - whisper segments dizisi
  * @returns {string} Adobe transcript JSON string
  */
+// ─── SRT Parse / Write (Faz 3) ──────────────────────────────────────────────
+
+/**
+ * SRT zaman damgasını float saniyeye çevirir.
+ * "HH:MM:SS,mmm" → float seconds
+ */
+function parseTimestamp(ts) {
+  const parts = ts.trim().split(':');
+  if (parts.length !== 3) return 0;
+  const h = parseInt(parts[0], 10) || 0;
+  const m = parseInt(parts[1], 10) || 0;
+  const secParts = parts[2].split(',');
+  const s = parseInt(secParts[0], 10) || 0;
+  const ms = parseInt(secParts[1] || '0', 10) || 0;
+  return h * 3600 + m * 60 + s + ms / 1000;
+}
+
+/**
+ * SRT formatındaki metni parse eder.
+ * @param {string} srtContent - SRT dosya içeriği
+ * @returns {Array<{id: string, index: number, startTime: number, endTime: number, text: string}>}
+ */
+function parseSRT(srtContent) {
+  if (!srtContent || !srtContent.trim()) return [];
+
+  const subtitles = [];
+  // Blokları çift satır kırmasıyla ayır (Windows/Unix uyumlu)
+  const blocks = srtContent.trim().replace(/\r\n/g, '\n').split(/\n\n+/);
+
+  for (const block of blocks) {
+    const lines = block.trim().split('\n');
+    if (lines.length < 3) continue;
+
+    // 1. satır: sıra numarası
+    const index = parseInt(lines[0].trim(), 10);
+    if (isNaN(index)) continue;
+
+    // 2. satır: zaman damgası
+    const timeLine = lines[1].trim();
+    const timeMatch = timeLine.match(/^(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})$/);
+    if (!timeMatch) continue;
+
+    const startTime = parseTimestamp(timeMatch[1]);
+    const endTime = parseTimestamp(timeMatch[2]);
+
+    // 3+ satır: metin
+    const text = lines.slice(2).join('\n').trim();
+    if (!text) continue;
+
+    subtitles.push({
+      id: 'sub_' + String(index).padStart(3, '0'),
+      index,
+      startTime,
+      endTime,
+      text
+    });
+  }
+
+  return subtitles;
+}
+
+/**
+ * Altyazı dizisini SRT formatına dönüştürür.
+ * @param {Array<{startTime: number, endTime: number, text: string}>} subtitles
+ * @returns {string} SRT formatında metin (UTF-8, BOM'suz)
+ */
+function writeSRT(subtitles) {
+  if (!subtitles || subtitles.length === 0) return '';
+
+  const lines = [];
+  for (let i = 0; i < subtitles.length; i++) {
+    const sub = subtitles[i];
+    lines.push(String(i + 1));
+    lines.push(formatTimestamp(sub.startTime) + ' --> ' + formatTimestamp(sub.endTime));
+    lines.push(sub.text);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+// ─── Adobe Transcript JSON ──────────────────────────────────────────────────
+
 function generateAdobeTranscriptJSON(segments) {
   if (!segments || segments.length === 0) return null;
 

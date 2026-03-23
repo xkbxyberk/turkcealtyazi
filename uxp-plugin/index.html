@@ -6,76 +6,275 @@
 </head>
 <body>
 
-  <!-- 1. Header Bar -->
-  <header class="header-bar">
-    <div class="header-left">
-      <span class="header-title">TürkçeAltyazı</span>
-      <span class="header-version">v1.0</span>
-    </div>
-    <div class="status-badge" id="statusBadge">
-      <span class="status-dot" id="statusDot"></span>
-      <span class="status-label" id="statusLabel">Kontrol ediliyor</span>
-    </div>
-  </header>
+  <!-- ============ SAYFA 1: OLUŞTURMA ============ -->
+  <div id="page-create">
 
-  <!-- 2. Sequence Bilgi Alanı -->
-  <section class="sequence-section">
-    <div class="sequence-content" id="sequenceContent">
-      <div class="sequence-eyebrow">Aktif Sequence</div>
-      <div class="sequence-name" id="sequenceName" title=""></div>
-      <div class="sequence-meta" id="sequenceMeta"></div>
-    </div>
-    <div class="sequence-empty" id="sequenceEmpty">
-      Bir sequence açın
-    </div>
-  </section>
+    <!-- 1. Header Bar -->
+    <header class="header-bar">
+      <div class="header-left">
+        <span class="header-title">TürkçeAltyazı</span>
+        <span class="header-version">v1.0</span>
+      </div>
+      <div class="status-badge" id="statusBadge">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-label" id="statusLabel">Kontrol ediliyor</span>
+      </div>
+    </header>
 
-  <!-- 3. Ana Buton Alanı -->
-  <section class="action-section" id="actionSection">
-    <button class="btn-generate" id="btnGenerate" disabled>Altyazı Oluştur</button>
-    <div class="action-hint">Türkçe · large-v3 · Core ML</div>
-  </section>
+    <!-- 2. Sequence Bilgi Alanı -->
+    <section class="sequence-section">
+      <div class="sequence-content" id="sequenceContent">
+        <div class="sequence-eyebrow">Aktif Sequence</div>
+        <div class="sequence-name" id="sequenceName" title=""></div>
+        <div class="sequence-meta" id="sequenceMeta"></div>
+      </div>
+      <div class="sequence-empty" id="sequenceEmpty">
+        Bir sequence açın
+      </div>
+    </section>
 
-  <!-- 4. İlerleme Alanı -->
-  <section class="progress-section" id="progressSection">
-    <div class="progress-label" id="progressLabel">Hazırlanıyor...</div>
-    <div class="progress-track">
-      <div class="progress-fill" id="progressFill"></div>
-    </div>
-    <div class="progress-footer">
-      <span class="progress-percent" id="progressPercent">0%</span>
-      <span class="progress-timer" id="progressTimer"></span>
-    </div>
-  </section>
+    <!-- 3. Özel Terimler -->
+    <section class="prompt-section">
+      <label class="section-label">Özel Terimler (isteğe bağlı)</label>
+      <textarea id="initialPrompt"
+        placeholder="Videodaki özel isimleri, markaları veya teknik terimleri virgülle ayırarak yazın. Örnek: Adobe Premiere, YouTube, İstanbul, Türkçe Altyazı"
+        rows="3"
+        maxlength="900"></textarea>
+      <div class="prompt-hint">
+        <span id="promptCharCount">0</span>/900 karakter
+      </div>
+    </section>
 
-  <!-- 5. Sonuç / Mesaj Alanı -->
-  <div class="result-card" id="resultCard">
-    <div class="result-title" id="resultTitle"></div>
-    <div class="result-detail" id="resultDetail"></div>
-    <div class="result-file" id="resultFile"></div>
-  </div>
+    <!-- 4. Ana Buton Alanı -->
+    <section class="action-section" id="actionSection">
+      <button class="btn-generate" id="btnGenerate" disabled>Altyazı Oluştur</button>
+      <div class="action-hint">Türkçe · large-v3 · Core ML</div>
+    </section>
 
-  <!-- 6. Sunucu Yardım Alanı -->
-  <section class="server-help" id="serverHelpSection">
-    <div class="server-help-title">Sunucu başlatılmadı</div>
-    <div class="server-help-desc">Terminal'de şu komutu çalıştırın:</div>
-    <div class="command-block">
-      <code id="serverCommand">~/Developer/turkcealtyazi/companion-app/start-server.sh</code>
-    </div>
-    <div class="server-help-actions">
-      <button class="btn-secondary" id="btnLaunchServer">Sunucuyu Başlat</button>
-      <button class="btn-ghost" id="btnCopyCommand">Komutu Kopyala</button>
-    </div>
-  </section>
+    <!-- 5. İlerleme Alanı -->
+    <section class="progress-section" id="progressSection">
+      <div class="progress-label" id="progressLabel">Hazırlanıyor...</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-footer">
+        <span class="progress-percent" id="progressPercent">0%</span>
+        <span class="progress-timer" id="progressTimer"></span>
+      </div>
+    </section>
 
-  <!-- 7. Footer -->
-  <footer class="footer-bar">
-    <span>localhost:8787</span>
-    <span>large-v3</span>
-  </footer>
+    <!-- 6. Sonuç / Mesaj Alanı -->
+    <div class="result-card" id="resultCard">
+      <div class="result-title" id="resultTitle"></div>
+      <div class="result-detail" id="resultDetail"></div>
+      <div class="result-file" id="resultFile"></div>
+      <button class="btn-secondary btn-open-editor" id="btnOpenEditor" style="display:none; margin-top:8px;">Düzenle</button>
+    </div>
+
+    <!-- 7. Sunucu Yardım Alanı -->
+    <section class="server-help" id="serverHelpSection">
+      <div class="server-help-title">Sunucu başlatılmadı</div>
+      <div class="server-help-desc">Terminal'de şu komutu çalıştırın:</div>
+      <div class="command-block">
+        <code id="serverCommand">~/Developer/turkcealtyazi/companion-app/start-server.sh</code>
+      </div>
+      <div class="server-help-actions">
+        <button class="btn-secondary" id="btnLaunchServer">Sunucuyu Başlat</button>
+        <button class="btn-ghost" id="btnCopyCommand">Komutu Kopyala</button>
+      </div>
+    </section>
+
+    <!-- 8. Footer -->
+    <footer class="footer-bar">
+      <span>localhost:8787</span>
+      <span>large-v3</span>
+    </footer>
+
+  </div><!-- /page-create -->
+
+  <!-- ============ SAYFA 2: DÜZENLEME ============ -->
+  <div id="page-editor" style="display:none">
+
+    <!-- Editor Header -->
+    <header class="header-bar editor-header">
+      <div class="header-left">
+        <button class="btn-ghost btn-back" id="btnBackToCreate">&larr; Geri</button>
+        <span class="header-title">Düzenle</span>
+      </div>
+      <button class="btn-ghost btn-settings" id="btnSettings">&#9881; Ayarlar</button>
+    </header>
+
+    <!-- Ayarlar Paneli (Overlay) -->
+    <div id="settingsPanel" class="settings-panel" style="display:none">
+      <div class="settings-header">
+        <span class="settings-title">Ayarlar</span>
+        <button class="btn-ghost btn-settings-close" id="btnSettingsClose">&times;</button>
+      </div>
+      <div class="settings-body">
+
+        <!-- Bölüm 1: Font Ayarları -->
+        <div class="settings-section">
+          <div class="settings-section-title">Font Ayarları</div>
+          <label class="settings-label">Font Ailesi</label>
+          <select id="settingFontFamily" class="settings-select">
+            <option value="Arial">Arial</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Courier New">Courier New</option>
+            <option value="monospace">Monospace</option>
+          </select>
+          <label class="settings-label">Font Boyutu: <span id="fontSizeValue">24</span>px</label>
+          <input type="range" id="settingFontSize" class="settings-range" min="12" max="72" value="24" />
+          <div class="settings-toggles">
+            <button class="style-toggle" id="toggleBold" title="Kalın">B</button>
+            <button class="style-toggle italic" id="toggleItalic" title="İtalik">I</button>
+            <button class="style-toggle underline" id="toggleUnderline" title="Altçizgi">U</button>
+          </div>
+        </div>
+
+        <!-- Bölüm 2: Renk Ayarları -->
+        <div class="settings-section">
+          <div class="settings-section-title">Renk Ayarları</div>
+          <label class="settings-label">Metin Rengi</label>
+          <div class="color-presets" id="textColorPresets">
+            <button class="color-preset" data-color="#FFFFFF" style="background:#FFFFFF" title="Beyaz"></button>
+            <button class="color-preset" data-color="#FFFF00" style="background:#FFFF00" title="Sarı"></button>
+            <button class="color-preset" data-color="#00FF00" style="background:#00FF00" title="Yeşil"></button>
+            <button class="color-preset" data-color="#00FFFF" style="background:#00FFFF" title="Cyan"></button>
+            <button class="color-preset" data-color="#FFA500" style="background:#FFA500" title="Turuncu"></button>
+            <button class="color-preset" data-color="#FF0000" style="background:#FF0000" title="Kırmızı"></button>
+          </div>
+          <input type="text" id="settingTextColor" class="settings-color-input" value="#FFFFFF" placeholder="#FFFFFF" />
+
+          <label class="settings-label">Arka Plan Rengi</label>
+          <div class="color-presets" id="bgColorPresets">
+            <button class="color-preset" data-color="#000000" style="background:#000000; border-color:#555" title="Siyah"></button>
+            <button class="color-preset" data-color="#333333" style="background:#333333" title="Koyu Gri"></button>
+            <button class="color-preset" data-color="#000000CC" style="background:rgba(0,0,0,0.8)" title="Yarı Saydam"></button>
+            <button class="color-preset" data-color="transparent" style="background:transparent; border-color:#555" title="Şeffaf">&#8709;</button>
+          </div>
+          <input type="text" id="settingBgColor" class="settings-color-input" value="#000000" placeholder="#000000" />
+
+          <label class="settings-label">Arka Plan Opaklığı: <span id="bgOpacityValue">80</span>%</label>
+          <input type="range" id="settingBgOpacity" class="settings-range" min="0" max="100" value="80" />
+        </div>
+
+        <!-- Bölüm 3: Pozisyon -->
+        <div class="settings-section">
+          <div class="settings-section-title">Pozisyon</div>
+          <div class="position-toggles">
+            <button class="position-btn active" data-position="bottom">Alt</button>
+            <button class="position-btn" data-position="center">Orta</button>
+            <button class="position-btn" data-position="top">Üst</button>
+          </div>
+        </div>
+
+        <!-- Bölüm 4: Hazır Şablonlar -->
+        <div class="settings-section">
+          <div class="settings-section-title">Hazır Şablonlar</div>
+          <div class="template-grid">
+            <div class="template-card" data-template="youtube">
+              <div class="template-preview youtube-preview">Örnek</div>
+              <div class="template-name">YouTube Standart</div>
+              <div class="template-desc">Beyaz, siyah kenarlık, Arial 24px</div>
+            </div>
+            <div class="template-card" data-template="tiktok">
+              <div class="template-preview tiktok-preview">Örnek</div>
+              <div class="template-name">TikTok/Reels</div>
+              <div class="template-desc">Kalın beyaz, gölge, 36px, orta</div>
+            </div>
+            <div class="template-card" data-template="sinema">
+              <div class="template-preview sinema-preview">Örnek</div>
+              <div class="template-name">Sinema</div>
+              <div class="template-desc">Georgia 18px, şeffaf arka plan</div>
+            </div>
+            <div class="template-card" data-template="netflix">
+              <div class="template-preview netflix-preview">Örnek</div>
+              <div class="template-name">Netflix</div>
+              <div class="template-desc">Beyaz, yarı saydam kutu, 22px</div>
+            </div>
+          </div>
+
+          <!-- Özel Şablonlar -->
+          <div class="custom-templates-section">
+            <label class="settings-label">Özel Şablonlar</label>
+            <div id="customTemplateList" class="custom-template-list"></div>
+            <div class="save-template-row">
+              <input type="text" id="templateNameInput" class="settings-input" placeholder="Şablon adı..." maxlength="30" />
+              <button class="toolbar-btn" id="btnSaveTemplate">Kaydet</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /settings-body -->
+    </div><!-- /settingsPanel -->
+
+    <!-- Araç Çubuğu -->
+    <div class="editor-toolbar" id="toolbar">
+      <input type="text" class="toolbar-search" id="searchInput" placeholder="Altyazılarda ara..." />
+      <button class="toolbar-btn" id="btnFilterCPS" title="CPS>20 filtrele">⚠ CPS&gt;20</button>
+      <button class="toolbar-btn" id="btnFilterLine" title=">42 karakter filtrele">📏 &gt;42ch</button>
+      <div class="toolbar-spacer"></div>
+      <button class="toolbar-btn" id="btnUndo" title="Geri Al">↩</button>
+      <button class="toolbar-btn" id="btnRedo" title="Yinele">↪</button>
+    </div>
+
+    <!-- Altyazı Listesi -->
+    <div class="editor-subtitle-list" id="subtitleList"></div>
+
+    <!-- Düzenleme Alanı -->
+    <div class="editor-edit-area" id="editArea">
+      <div class="edit-empty" id="editEmpty">Bir altyazı seçin</div>
+      <div class="edit-content" id="editContent">
+        <textarea id="editText" rows="3" placeholder="Altyazı metni..."></textarea>
+        <div class="timing-row">
+          <label class="timing-label">Başlangıç:</label>
+          <button class="timing-btn" id="btnStartMinus">&#9664;</button>
+          <input type="text" class="timing-input" id="editStartTime" value="00:00:00,000" />
+          <button class="timing-btn" id="btnStartPlus">&#9654;</button>
+          <label class="timing-label">Bitiş:</label>
+          <button class="timing-btn" id="btnEndMinus">&#9664;</button>
+          <input type="text" class="timing-input" id="editEndTime" value="00:00:00,000" />
+          <button class="timing-btn" id="btnEndPlus">&#9654;</button>
+        </div>
+        <div class="info-row">
+          <span class="info-item" id="editDuration">Süre: 0.00s</span>
+          <span class="info-item" id="editCPS">CPS: 0.0</span>
+          <span class="info-item" id="editLineInfo">Satır 1: 0/42</span>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" id="btnSplit">&#9986; Böl</button>
+          <button class="action-btn" id="btnMerge">&#128279; Birleştir</button>
+          <button class="action-btn" id="btnDelete">&#128465; Sil</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alt Araç Çubuğu -->
+    <div class="editor-bottom-bar" id="bottomBar">
+      <button class="toolbar-btn" id="btnSaveSRT">💾 Kaydet</button>
+      <button class="toolbar-btn" id="btnReloadSRT">📥 Yeniden Yükle</button>
+      <button class="toolbar-btn" id="btnOffset">⏱ Offset</button>
+      <div class="toolbar-spacer"></div>
+      <div class="export-wrapper" id="exportWrapper">
+        <button class="toolbar-btn" id="btnExport">📤 Export ▼</button>
+        <div class="dropdown-menu" id="exportMenu">
+          <button class="dropdown-item" data-format="srt">SRT (SubRip)</button>
+          <button class="dropdown-item" data-format="vtt">VTT (WebVTT)</button>
+          <button class="dropdown-item" data-format="txt">TXT (Düz Metin)</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-editor -->
 
   <script src="srt.js"></script>
   <script src="api.js"></script>
+  <script src="export.js"></script>
+  <script src="editor.js"></script>
   <script src="index.js"></script>
 </body>
 </html>

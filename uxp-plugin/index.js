@@ -46,6 +46,25 @@ let lastSequenceName = null;
 let cachedProject = null;
 let processStartTime = null;
 let timerInterval = null;
+let lastSrtPath = null; // Son oluşturulan SRT dosya yolu
+
+// =====================================================================
+//  Sayfa Geçişi
+// =====================================================================
+
+function showPage(pageName) {
+  const pageCreate = document.getElementById('page-create');
+  const pageEditor = document.getElementById('page-editor');
+  if (pageName === 'editor') {
+    pageCreate.style.display = 'none';
+    pageEditor.style.display = 'flex';
+    startPlayheadSync();
+  } else {
+    pageCreate.style.display = 'block';
+    pageEditor.style.display = 'none';
+    stopPlayheadSync();
+  }
+}
 
 // =====================================================================
 //  Sunucu Otomatik Başlatma
@@ -54,10 +73,7 @@ let timerInterval = null;
 async function launchServer() {
   try {
     const shell = uxp.shell;
-    console.debug("uxp.shell keys:", Object.keys(shell || {}));
-
     if (shell && typeof shell.openPath === "function") {
-      console.debug("shell.openPath ile başlatılıyor:", START_SCRIPT);
       await shell.openPath(START_SCRIPT);
       setServerLaunching();
       return true;
@@ -65,13 +81,11 @@ async function launchServer() {
 
     if (shell && typeof shell.openExternal === "function") {
       const fileUrl = "file://" + START_SCRIPT;
-      console.debug("shell.openExternal ile başlatılıyor:", fileUrl);
       await shell.openExternal(fileUrl);
       setServerLaunching();
       return true;
     }
 
-    console.debug("shell API bulunamadı — manuel başlatma gerekli.");
     return false;
   } catch (e) {
     console.error("launchServer hatası:", e.message);
@@ -133,10 +147,6 @@ async function getProject() {
   try {
     if (ppro.Project && typeof ppro.Project.getActiveProject === "function") {
       cachedProject = await ppro.Project.getActiveProject();
-      if (cachedProject && !getProject._logged) {
-        getProject._logged = true;
-        console.debug("project proto keys:", Object.getOwnPropertyNames(Object.getPrototypeOf(cachedProject)));
-      }
       return cachedProject;
     }
   } catch (e) {
@@ -236,7 +246,6 @@ async function updateSequenceInfo() {
       sequenceEmpty.classList.remove("hidden");
     }
 
-    console.debug("Aktif sequence:", name || "(yok)");
   }
 
   btnGenerate.disabled = !serverConnected || !seq || isProcessing;
@@ -306,7 +315,6 @@ async function getFirstMediaPath(sequence) {
     if (project) {
       const rootItem = await project.getRootItem();
       const children = await rootItem.getItems();
-      console.debug("rootItem children count:", children ? children.length : 0);
       const rootPath = await findAnyMediaPath(children);
       if (rootPath) return rootPath;
     }
@@ -332,7 +340,6 @@ async function getMediaPathFromTracks(sequence) {
       for (let c = 0; c < clips.length; c++) {
         const baseItem = await clips[c].getProjectItem();
         if (!baseItem) continue;
-        console.debug("videoTrack[" + t + "] clip[" + c + "]:", baseItem.name);
 
         if (ppro.ClipProjectItem && typeof ppro.ClipProjectItem.cast === "function") {
           const clipItem = ppro.ClipProjectItem.cast(baseItem);
@@ -475,9 +482,9 @@ async function handleGenerate() {
 
     // 2. Transkripsiyon
     showProgress("Sunucuya gönderiliyor...", 20);
-    const result = await transcribeAudio(audioBlob, fileName);
+    const initialPrompt = document.getElementById('initialPrompt')?.value?.trim() || '';
+    const result = await transcribeAudio(audioBlob, fileName, initialPrompt);
 
-    console.debug("Raw response (first 500 chars):", JSON.stringify(result).substring(0, 500));
 
     showProgress("Transkripsiyon yapılıyor (VAD + Core ML)...", 40);
 
@@ -566,9 +573,17 @@ async function handleGenerate() {
       detailParts.push("SRT projeye eklendi — timeline'a sürükleyin");
     }
 
+    lastSrtPath = srtPath;
+
     setTimeout(() => {
       hideProgress();
       showResult("success", "Altyazı oluşturuldu", detailParts.join("\n"), srtFileName);
+      // "Düzenle" butonunu göster
+      const btnEditor = document.getElementById('btnOpenEditor');
+      if (btnEditor) btnEditor.style.display = 'inline-block';
+      // Otomatik olarak düzenleme sayfasına geç
+      showPage('editor');
+      loadSRT(lastSrtPath);
     }, 800);
 
   } catch (err) {
@@ -595,7 +610,6 @@ async function setupEventListener() {
       ppro.EventManager.addEventListener(project, "onActiveSequenceChanged", () => {
         updateSequenceInfo();
       });
-      console.debug("Sequence event listener bağlandı.");
     }
   } catch (e) {
     console.warn("Event listener kurulumu başarısız:", e.message);
@@ -607,18 +621,24 @@ async function setupEventListener() {
 // =====================================================================
 
 async function panelCreate() {
-  console.debug("TürkçeAltyazı panel oluşturuldu");
-  const shell = uxp.shell;
-  console.debug("uxp.shell keys:", Object.keys(shell || {}));
+
+  // Karakter sayacı
+  const promptInput = document.getElementById('initialPrompt');
+  const charCount = document.getElementById('promptCharCount');
+  if (promptInput && charCount) {
+    promptInput.addEventListener('input', () => {
+      charCount.textContent = promptInput.value.length;
+    });
+  }
 
   await setupEventListener();
   startPolling();
 }
 
 async function panelDestroy() {
-  console.debug("TürkçeAltyazı panel kapatılıyor");
   stopPolling();
   stopTimer();
+  stopPlayheadSync();
 }
 
 // =====================================================================
@@ -626,6 +646,24 @@ async function panelDestroy() {
 // =====================================================================
 
 btnGenerate.addEventListener("click", handleGenerate);
+
+// Sayfa geçiş butonları
+document.getElementById('btnBackToCreate').addEventListener('click', () => {
+  if (editorState.isModified) {
+    if (!confirm('Kaydedilmemiş değişiklikler var. Yine de çıkmak istiyor musunuz?')) {
+      return;
+    }
+  }
+  showPage('create');
+});
+
+document.getElementById('btnOpenEditor').addEventListener('click', () => {
+  showPage('editor');
+  if (lastSrtPath) loadSRT(lastSrtPath);
+});
+
+// Düzenleme alanı event listener'larını bağla
+initEditArea();
 
 try {
   const entrypoints = uxp.entrypoints;
