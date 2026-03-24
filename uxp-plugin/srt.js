@@ -216,12 +216,11 @@ function mergeFragmentedWords(segments) {
 
 /**
  * Tüm segmentlerden düz word listesi çıkarır.
- * Kelimeleri segment süresine eşit dağıtır (word-level timestamps kullanılmıyor).
- * v2.1: Minimum 100ms/kelime, segment sınırı korunur, segmentId taşınır.
+ * v3: Karakter uzunluğuna orantılı dağıtım — kısa kelimeler kısa süre, uzun kelimeler uzun süre alır.
+ * Segment sınırı korunur, segmentId taşınır.
  */
 function extractWords(segments) {
   const allWords = [];
-  const MIN_WORD_DURATION = 0.1; // 100ms minimum
 
   for (let segIdx = 0; segIdx < segments.length; segIdx++) {
     const seg = segments[segIdx];
@@ -234,15 +233,16 @@ function extractWords(segments) {
     const rawWords = text.split(/\s+/).filter(Boolean);
     if (rawWords.length === 0) continue;
 
-    // Segment sınırını ASLA aşma — kelimeleri segment içine sıkıştır
-    // Minimum kelime süresi kontrolü: kelime sayısı × MIN_WORD_DURATION > segDuration ise
-    // segment süresini eşit böl (daha kısa ama orantılı), aksi halde min süreyi garanti et
-    const idealWordDur = segDuration / rawWords.length;
-    const wordDur = Math.max(idealWordDur, Math.min(MIN_WORD_DURATION, segDuration / rawWords.length));
+    // Karakter uzunluğuna orantılı dağıtım
+    // Her kelime en az 1 karakter ağırlığında (boşlukları saymıyoruz)
+    const charWeights = rawWords.map(w => Math.max(w.length, 1));
+    const totalWeight = charWeights.reduce((sum, w) => sum + w, 0);
 
+    let cumWeight = 0;
     for (let i = 0; i < rawWords.length; i++) {
-      const wStart = segStart + i * wordDur;
-      const wEnd = Math.min(segStart + (i + 1) * wordDur, segEnd);
+      const wStart = segStart + (cumWeight / totalWeight) * segDuration;
+      cumWeight += charWeights[i];
+      const wEnd = Math.min(segStart + (cumWeight / totalWeight) * segDuration, segEnd);
 
       allWords.push({
         text: rawWords[i],
@@ -708,6 +708,13 @@ function generateSRT(segments) {
 /**
  * Whisper verbose_json yanıtından word-level timestamps çıkarır.
  * Sub-word token'ları (boşluksuz başlayan) önceki kelimeyle birleştirir.
+ *
+ * Zamanlama stratejisi (v4.0 — Server-Side VAD Mapping):
+ *   whisper-server artık token timestamps'ı whisper_vad_map_timestamp() ile
+ *   orijinal video zamanına map ediyor (server.cpp'de). Client-side VAD offset
+ *   düzeltmesine gerek yok. Token zamanlamaları doğrudan kullanılır.
+ *   DTW onset'leri de server tarafında map edilmiş olarak gelir.
+ *
  * @param {Object} result - whisper-server verbose_json yanıtı
  * @returns {Array<{text: string, start: number, end: number}>}
  */
@@ -716,35 +723,37 @@ function extractWordTimestamps(result) {
   const segments = result.transcription || result.segments || [];
 
   for (const seg of segments) {
-    // Segment sınırları — güvenilir zaman referansı
+    // Segment sınırları — server tarafında VAD mapping uygulanmış
     const segStart = normalizeTime(seg.t0, seg.start);
     const segEnd = normalizeTime(seg.t1, seg.end);
-    const segDuration = segEnd - segStart;
-    if (segDuration <= 0) continue;
+    if (segEnd - segStart <= 0) continue;
 
-    // whisper.cpp verbose_json: segment.words = token dizisi
-    // [{word: " Merhaba", start: 0.5, end: 0.9, probability: 0.98}, ...]
     const segWords = seg.words || [];
 
     if (segWords.length > 0) {
-      // 1. Önce sub-word token'ları birleştirerek segment kelimelerini topla
+      // 1. Sub-word token birleştirme
+      // Server artık token timestamps'ı VAD mapping'den geçiriyor,
+      // dolayısıyla word start/end orijinal video zamanında geliyor.
       const segCollected = [];
       for (const w of segWords) {
         const text = (w.word || w.text || '').trim();
         if (!text) continue;
 
-        const wStart = w.start != null ? w.start :
-                       (w.t0 != null ? w.t0 / 100 : 0);
-        const wEnd = w.end != null ? w.end :
-                     (w.t1 != null ? w.t1 / 100 : wStart + 0.1);
+        // Zamanlamalar — server tarafında VAD-mapped, orijinal video zamanı
+        let wStart = w.start != null ? w.start :
+                     (w.t0 != null ? w.t0 / 100 : 0);
+        let wEnd = w.end != null ? w.end :
+                   (w.t1 != null ? w.t1 / 100 : wStart + 0.1);
 
-        // Sub-word token kontrolü: whisper.cpp'de kelime sınırı boşlukla başlar.
-        // Boşluksuz başlayan token → sub-word, önceki kelimeyle birleştirilmeli.
+        // DTW zamanlaması: t_dtw ≥ 0 ise DTW aktif, server tarafında VAD-mapped centisaniye
+        const hasDTW = w.t_dtw != null && w.t_dtw >= 0;
+        const dtwOnset = hasDTW ? w.t_dtw / 100 : -1;
+
+        // Sub-word token kontrolü: boşluksuz başlayan → önceki kelimeyle birleştir
         const rawWord = w.word || w.text || '';
         const startsWithSpace = rawWord.length > 0 && rawWord[0] === ' ';
         if (!startsWithSpace && segCollected.length > 0) {
           const prev = segCollected[segCollected.length - 1];
-          // Zaman farkı 200ms altıysa sub-word token olarak birleştir
           if (wStart - prev.end < 0.2) {
             prev.text = prev.text + text;
             prev.end = wEnd;
@@ -752,51 +761,60 @@ function extractWordTimestamps(result) {
           }
         }
 
-        segCollected.push({ text, start: wStart, end: wEnd });
+        segCollected.push({
+          text,
+          start: hasDTW ? dtwOnset : wStart,
+          end: wEnd,
+          hasDTW,
+          dtwOnset,
+        });
       }
 
       if (segCollected.length === 0) continue;
 
-      // 2. Proportional Distribution: token sürelerini ağırlık olarak kullan
-      // Whisper'ın attention-based token timestamps'ı gürültülü ve boşluklu olabilir.
-      // Segment sınırları (VAD + Whisper main decoder) çok daha güvenilirdir.
-      //
-      // Strateji: Her token'ın orijinal süresini ağırlık olarak kullanıp,
-      // segment süresini orantılı ve boşluksuz dağıtmak.
-      //   - Kelimeler arası gap kalmaz → "önden/arkadan gelme" sorunu çözülür
-      //   - Segment sınırları garantili → kümülatif drift olmaz
-      //   - Orijinal süre oranları korunur → uzun kelime = uzun süre (doğal ritim)
-      const tokenDurations = segCollected.map(w => Math.max(w.end - w.start, 0.01));
-      const totalTokenDuration = tokenDurations.reduce((a, b) => a + b, 0);
-
-      let cursor = segStart;
+      // 2. DTW onset tabanlı end zamanlama: ardışık onset'lerden sınır oluştur
       for (let k = 0; k < segCollected.length; k++) {
-        const ratio = tokenDurations[k] / totalTokenDuration;
-        const allocatedDuration = ratio * segDuration;
-        segCollected[k].start = cursor;
-        segCollected[k].end = cursor + allocatedDuration;
-        cursor += allocatedDuration;
+        const curr = segCollected[k];
+
+        if (curr.hasDTW && k + 1 < segCollected.length && segCollected[k + 1].hasDTW) {
+          curr.end = segCollected[k + 1].dtwOnset;
+        }
+
+        // Minimum kelime süresi: 50ms
+        if (curr.end - curr.start < 0.05) {
+          curr.end = curr.start + 0.05;
+        }
+
+        // Segment sınırı clamp: kelime asla segment dışına taşamaz
+        curr.start = Math.max(segStart, Math.min(curr.start, segEnd));
+        curr.end = Math.max(curr.start, Math.min(curr.end, segEnd));
       }
 
-      // Son kelimenin end'ini segment sonuna sabitle (kayan nokta uyumu)
-      segCollected[segCollected.length - 1].end = segEnd;
+      // 3. Overlap çözümleme: ardışık kelimelerde overlap varsa midpoint split
+      for (let k = 0; k < segCollected.length - 1; k++) {
+        const curr = segCollected[k];
+        const next = segCollected[k + 1];
+        if (curr.end > next.start) {
+          const mid = (curr.end + next.start) / 2;
+          curr.end = mid;
+          next.start = mid;
+        }
+      }
 
-      words.push(...segCollected);
+      // 4. Temiz word dizisine dönüştür
+      for (const w of segCollected) {
+        words.push({ text: w.text, start: w.start, end: w.end });
+      }
     } else {
-      // Word-level timestamps yok — segment bazlı fallback (eşit dağıtım)
+      // Word-level timestamps hiç yok — segment tek blok olarak ekle
       const segText = (seg.text || '').trim();
       if (!segText) continue;
 
-      const rawWords = segText.split(/\s+/).filter(Boolean);
-      const wordDur = rawWords.length > 0 ? segDuration / rawWords.length : segDuration;
-
-      for (let i = 0; i < rawWords.length; i++) {
-        words.push({
-          text: rawWords[i],
-          start: segStart + i * wordDur,
-          end: segStart + (i + 1) * wordDur,
-        });
-      }
+      words.push({
+        text: segText,
+        start: segStart,
+        end: segEnd,
+      });
     }
   }
 
@@ -865,12 +883,10 @@ function cleanWordTimestamps(words) {
         const isSubwordByStructure = endsWithConsonantCluster && startsWithVowel;
 
         if (startsWithRareInitial || isSubwordByStructure) {
-          // Birleştirmede aradaki sessizlik gap'ini çıkar — sadece konuşma sürelerini topla
-          // "sıkınt" (0.84s) + "ılıyım" (0.87s) → 1.71s (gap dahil 2.32s değil)
-          const prevDuration = prev.end - prev.start;
-          const currDuration = curr.end - curr.start;
+          // Sub-word birleştirme: orijinal bitiş zamanını koru
+          // Server artık VAD-mapped timestamps döndüğü için gap çıkarmaya gerek yok
           prev.text = prevClean + curr.text;
-          prev.end = prev.start + prevDuration + currDuration;
+          prev.end = curr.end;
           continue;
         }
       }

@@ -31,9 +31,12 @@ async function transcribeAudio(audioBlob, filename, initialPrompt, wordTimestamp
   if (initialPrompt && initialPrompt.length > 0) {
     formData.append("prompt", initialPrompt);
   }
-  // NOT: whisper.cpp server "word_timestamps" parametresi desteklemez.
-  // Token timestamps verbose_json modunda her zaman üretilir.
-  // wordTimestamps parametresi srt.js tarafında mod seçimi için kullanılır.
+  // Word-by-word modda: düşük güvenilirlikli token zamanlamalarını filtrele
+  // ve kelime sınırında bölmeyi aktif et. Klasik modu etkilememesi için koşullu.
+  if (wordTimestamps) {
+    formData.append("word_thold", "0.3");
+    formData.append("split_on_word", "true");
+  }
 
   const response = await fetch(SERVER_URL + "/inference", {
     method: "POST",

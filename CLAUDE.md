@@ -46,7 +46,8 @@ turkcealtyazi/
   ```bash
   cd companion-app/whisper.cpp
   ./build/bin/whisper-server -m models/ggml-large-v3.bin -l tr --port 8787 --convert \
-    --beam-size 1 --vad --vad-model models/ggml-silero-v6.2.0.bin
+    --beam-size 1 --dtw large.v3 --no-flash-attn \
+    --vad --vad-model models/ggml-silero-v6.2.0.bin
   ```
 - whisper-server test:
   ```bash
@@ -64,6 +65,10 @@ turkcealtyazi/
 - **Neden SRT import:** UXP Caption API henüz yok (Adobe doğruladı)
 - **Endpoint:** POST http://localhost:8787/inference (FormData: file, language=tr, response_format=verbose_json)
 - **word_timestamps:** Klasik modda KULLANILMAZ (sub-word token sorunu). Word-by-Word modda aktif — sub-word token'lar extractWordTimestamps() ile birleştirilir
+- **--dtw large.v3:** Cross-attention matrislerinden DTW ile kesin token zamanlamaları. Yanıtta `t_dtw` alanı (centisaniye) gelir. `--no-flash-attn` ile birlikte ZORUNLU (DTW tam attention matrislerine ihtiyaç duyar)
+- **Zamanlama stratejisi (v4.0):** Server-side VAD token mapping — whisper.cpp'ye `whisper_vad_map_timestamp()` API fonksiyonu eklendi. server.cpp'de token timestamps (word start/end, t_dtw) artık `map_processed_to_original_time()` ile orijinal video zamanına dönüştürülüyor. Client-side VAD offset workaround kaldırıldı. DTW onset'leri de server tarafında map edilmiş olarak geliyor. Clip in-point offset kompansasyonu eklendi (index.js). Klasik modda karakter-orantılı kelime dağıtımı (eşit dağıtım yerine). FFmpeg komutuna `-avoid_negative_ts make_zero` eklendi
+- **word_thold=0.3:** Sadece word-by-word modda gönderilir — düşük güvenilirlikli token zamanlamalarını filtreler
+- **split_on_word=true:** Sadece word-by-word modda — kelime sınırında segment bölme
 - **--convert bayrağı:** ZORUNLU — video dosyası direkt gönderilince FFmpeg dönüşümü için
 - **--beam-size 1:** Greedy decoding — sessiz kısımlarda halüsinasyon azaltır (varsayılan beam=5 uydurma metin üretir)
 - **initial_prompt:** UI'dan isteğe bağlı, özel isim/terim zorlama (max 224 token, ~900 karakter). FormData'da `prompt` alanı olarak gönderilir
@@ -293,6 +298,13 @@ Hata:  >20 CPS (kırmızı, blok bölünmeli)
 - [x] Halüsinasyon temizleme (ardışık tekrar kelimeler)
 - [x] Dosya adı ayrımı: _altyazi.srt (klasik) / _kelime.srt (word-by-word)
 - [x] Düzenleme paneli ile tam uyumlu (aynı SRT formatı)
+- [x] VAD offset düzeltmesi (v4.0): Server-side — whisper_vad_map_timestamp() API ile token timestamps orijinal zamana dönüştürülüyor. Client-side workaround kaldırıldı
+- [x] DTW zamanlama iyileştirmesi: --dtw large.v3 --no-flash-attn sunucu parametreleri
+- [x] Proportional distribution kaldırıldı — karakter-orantılı dağıtım ile değiştirildi (v4.0)
+- [x] DTW onset tabanlı zamanlama: ardışık t_dtw değerlerinden sınır oluşturma
+- [x] Gap handling: sessizlik boşlukları korunur (altyazı gösterilmez)
+- [x] Overlap midpoint split ile çözümleme
+- [x] word_thold=0.3 + split_on_word=true (sadece word-by-word modda)
 
 ### ⏳ Faz 5 — Animasyon (Araştırma Aşaması)
 Kelime kelime animasyon için potansiyel yaklaşımlar:
@@ -322,6 +334,7 @@ Kelime kelime animasyon için potansiyel yaklaşımlar:
 | Sunucu manuel başlatılıyor | Çözümsüz | shell.openPath UXP'de çalışmıyor |
 | SRT timeline'a manuel ekleniyor | Çözümsüz | Caption track API yok (Adobe) |
 | Birkaç kelime bölünmesi | Kısmen çözüldü | "yo ğurt" gibi nadir vakalar |
+| Word-by-word senkron kayması | Çözüldü | Server-side VAD token mapping (v4.0). whisper_vad_map_timestamp() API fonksiyonu ile token timestamps orijinal zamana dönüştürülüyor. Client-side workaround kaldırıldı |
 
 ## Hata Düzeltmeleri (v1.1)
 - [x] srt.js: enforceLineLimit() metin kaybı düzeltildi — artık metni kesmiyor
@@ -334,6 +347,17 @@ Kelime kelime animasyon için potansiyel yaklaşımlar:
 - [x] editor.js: mergeSubtitle CPS hesabı düzeltildi — gap çıkarılıyor
 - [x] editor.js: Kaydedilmemiş değişiklik göstergesi eklendi (Kaydet butonunda turuncu nokta)
 - [x] manifest.json: minVersion 25.1.0 → 25.6.0
+
+## Senkronizasyon Düzeltmeleri (v4.0)
+- [x] whisper.h/whisper.cpp: `whisper_vad_map_timestamp()` API fonksiyonu — token timestamps'ı orijinal zamana dönüştürür
+- [x] server.cpp: Token word start/end ve t_dtw değerlerine VAD mapping uygulandı
+- [x] server.cpp: FFmpeg komutuna `-avoid_negative_ts make_zero` eklendi (AAC encoder delay telafisi)
+- [x] srt.js: Client-side VAD offset workaround kaldırıldı (server artık handle ediyor)
+- [x] srt.js: extractWords() karakter-orantılı dağıtım (eşit dağıtım yerine)
+- [x] srt.js: cleanWordTimestamps() sub-word birleştirmede orijinal end zamanı korunuyor
+- [x] index.js: Clip in-point offset kompansasyonu — trimlenmiş clip'lerde senkron düzeltmesi
+- [x] index.js: `getClipTimeOffset()` fonksiyonu — timeline clip'in inPoint ve start bilgisini alır
+- [x] whisper-server rebuild: Core ML + Metal + VAD mapping fix ile yeniden derlendi
 
 ## UI/UX İyileştirmeler (v1.2)
 - [x] CSS tasarım token sistemi (yüzey katmanları, renk hiyerarşisi, tipografi skalası, aralık sistemi)

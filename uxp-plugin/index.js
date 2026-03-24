@@ -375,6 +375,52 @@ async function getFirstMediaPath(sequence) {
   return null;
 }
 
+/**
+ * Timeline'daki ilk video clip'in in-point ve start offset'ini döner.
+ * Clip trimlenmiş ise inPoint > 0 olur — SRT timestamp'larından çıkarılmalı.
+ * @returns {{ inPoint: number, startOnTimeline: number }}
+ */
+async function getClipTimeOffset(sequence) {
+  try {
+    let trackItemType = 1;
+    if (ppro.Constants && ppro.Constants.TrackItemType) {
+      trackItemType = ppro.Constants.TrackItemType.CLIP || 1;
+    }
+
+    const videoTrackCount = await sequence.getVideoTrackCount();
+    for (let t = 0; t < videoTrackCount; t++) {
+      const track = await sequence.getVideoTrack(t);
+      const clips = track.getTrackItems(trackItemType, false);
+      if (!clips || clips.length === 0) continue;
+
+      const clip = clips[0];
+      let inPoint = 0;
+      let startOnTimeline = 0;
+
+      // inPoint: clip'in kaynak dosyadaki başlangıç noktası
+      try {
+        if (clip.inPoint) {
+          inPoint = clip.inPoint.seconds != null ? clip.inPoint.seconds :
+                    (clip.inPoint.ticks != null ? clip.inPoint.ticks / 254016000000 : 0);
+        }
+      } catch (_) {}
+
+      // start: clip'in timeline'daki başlangıç pozisyonu
+      try {
+        if (clip.start) {
+          startOnTimeline = clip.start.seconds != null ? clip.start.seconds :
+                            (clip.start.ticks != null ? clip.start.ticks / 254016000000 : 0);
+        }
+      } catch (_) {}
+
+      return { inPoint, startOnTimeline };
+    }
+  } catch (e) {
+    console.warn("getClipTimeOffset hatası:", e.message);
+  }
+  return { inPoint: 0, startOnTimeline: 0 };
+}
+
 async function getMediaPathFromTracks(sequence) {
   try {
     let trackItemType = 1;
@@ -540,11 +586,33 @@ async function handleGenerate() {
 
     showProgress("Transkripsiyon yapılıyor (VAD + Core ML)...", 40);
 
-    // 3. Segmentleri işle + SRT oluştur
+    // 3. Clip in-point offset — trimlenmiş clip'lerde senkron düzeltmesi
     showProgress("Segmentler işleniyor...", 60);
+
+    const { inPoint: clipInPoint, startOnTimeline } = await getClipTimeOffset(sequence);
+    // Offset: whisper zamanlamasını timeline zamanına dönüştür
+    // timeline_time = whisper_time - clipInPoint + startOnTimeline
+    const timeOffset = -clipInPoint + startOnTimeline;
 
     const segments = result.transcription || result.segments || [];
     if (segments.length === 0) throw new Error("Transkripsiyon sonucu boş döndü.");
+
+    // Offset uygula (0 değilse)
+    if (Math.abs(timeOffset) > 0.001) {
+      for (const seg of segments) {
+        if (seg.start != null) seg.start += timeOffset;
+        if (seg.end != null) seg.end += timeOffset;
+        if (seg.t0 != null) seg.t0 += Math.round(timeOffset * 100); // centisaniye
+        if (seg.t1 != null) seg.t1 += Math.round(timeOffset * 100);
+        if (seg.words) {
+          for (const w of seg.words) {
+            if (w.start != null) w.start += timeOffset;
+            if (w.end != null) w.end += timeOffset;
+            if (w.t_dtw != null && w.t_dtw >= 0) w.t_dtw += Math.round(timeOffset * 100);
+          }
+        }
+      }
+    }
 
     showProgress("SRT segmentleri oluşturuluyor...", 75);
     let srtContent;
