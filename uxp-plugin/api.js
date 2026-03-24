@@ -31,9 +31,9 @@ async function transcribeAudio(audioBlob, filename, initialPrompt, wordTimestamp
   if (initialPrompt && initialPrompt.length > 0) {
     formData.append("prompt", initialPrompt);
   }
-  if (wordTimestamps) {
-    formData.append("word_timestamps", "true");
-  }
+  // NOT: whisper.cpp server "word_timestamps" parametresi desteklemez.
+  // Token timestamps verbose_json modunda her zaman üretilir.
+  // wordTimestamps parametresi srt.js tarafında mod seçimi için kullanılır.
 
   const response = await fetch(SERVER_URL + "/inference", {
     method: "POST",

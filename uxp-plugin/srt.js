@@ -72,11 +72,32 @@ const UNITS = new Set([
 const TR_CONJUNCTIONS = ["ama", "fakat", "ancak", "çünkü", "ve", "veya", "ya", "ki", "hem", "ne", "ise", "oysa"];
 const TR_SUFFIXES = ["dir", "dır", "tır", "tir", "dur", "dür", "tur", "tür", "dır.", "dir.", "tır.", "tir."];
 
+// ─── Smart Word-by-Word Sözlükler ───────────────────────────────────────────
+
+/** İleriye bağlanan kelimeler — sonraki kelimeyle birleştirmeyi tercih eder */
+const FORWARD_BINDING = new Set([
+  'bir', 'bu', 'şu', 'o', 'her', 'hiç', 'hiçbir', 'birçok',
+  'en', 'çok', 'pek', 'daha', 'az', 'tam', 'gayet',
+  'tüm', 'bütün', 'bazı', 'birkaç', 'kaç', 'hangi',
+  'ne', 'öyle', 'böyle', 'şöyle'
+]);
+
+/** Geriye bağlanan kelimeler — önceki kelimeyle birleştirmeyi tercih eder */
+const BACKWARD_BINDING = new Set([
+  'da', 'de', 'mi', 'mı', 'mu', 'mü',
+  'ki', 'ya', 'bile', 'dahi', 'ise'
+]);
+
 function formatTimestamp(seconds) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  const ms = Math.round((seconds % 1) * 1000);
+  // Negatif değerleri sıfıra çek
+  if (seconds < 0) seconds = 0;
+
+  // Toplam milisaniyeyi tamsayıya yuvarla — kayan nokta taşmasını önler
+  const totalMs = Math.round(seconds * 1000);
+  const h = Math.floor(totalMs / 3600000);
+  const m = Math.floor((totalMs % 3600000) / 60000);
+  const s = Math.floor((totalMs % 60000) / 1000);
+  const ms = totalMs % 1000;
   return (
     String(h).padStart(2, "0") +
     ":" +
@@ -214,18 +235,20 @@ function extractWords(segments) {
     if (rawWords.length === 0) continue;
 
     // Segment sınırını ASLA aşma — kelimeleri segment içine sıkıştır
-    const effectiveDuration = segDuration;
-    const wordDur = effectiveDuration / rawWords.length;
+    // Minimum kelime süresi kontrolü: kelime sayısı × MIN_WORD_DURATION > segDuration ise
+    // segment süresini eşit böl (daha kısa ama orantılı), aksi halde min süreyi garanti et
+    const idealWordDur = segDuration / rawWords.length;
+    const wordDur = Math.max(idealWordDur, Math.min(MIN_WORD_DURATION, segDuration / rawWords.length));
 
     for (let i = 0; i < rawWords.length; i++) {
       const wStart = segStart + i * wordDur;
-      const wEnd = segStart + (i + 1) * wordDur;
+      const wEnd = Math.min(segStart + (i + 1) * wordDur, segEnd);
 
       allWords.push({
         text: rawWords[i],
-        start: Math.max(wStart, segStart),          // segment sınırı altına düşme
-        end: Math.min(wEnd, segEnd),
-        segmentId: segIdx,                           // orijinal segment kimliği
+        start: wStart,
+        end: wEnd,
+        segmentId: segIdx,
       });
     }
   }
@@ -610,13 +633,23 @@ function groupWordsIntoSubtitles(words) {
     merged.push({ ...sub });
   }
 
-  // Gap ekleme
+  // Gap ekleme — altyazılar arası minimum boşluk garantisi
+  // Strateji: bitiş zamanını konuşma bitişinden çok geri çekmeden,
+  // minimum gap sağla. Drift'i önlemek için orijinal bitiş zamanını mümkün olduğunca koru.
   for (let i = 0; i < merged.length - 1; i++) {
     const gap = merged[i + 1].start - merged[i].end;
     if (gap < SRT_CONFIG.gapBetweenSubs) {
-      merged[i].end = merged[i + 1].start - SRT_CONFIG.gapBetweenSubs;
-      if (merged[i].end < merged[i].start) {
-        merged[i].end = merged[i].start + 0.01;
+      // Gereken ek boşluk
+      const needed = SRT_CONFIG.gapBetweenSubs - gap;
+      // Boşluğu yarı yarıya paylaştır: mevcut bloğun end'ini geri çek + sonrakinin start'ından sonra başlat
+      // Ama blok süresini %20'den fazla kısaltma (drift'i önle)
+      const currentDuration = merged[i].end - merged[i].start;
+      const maxPullback = currentDuration * 0.2; // Sürenin en fazla %20'si kadar geri çek
+      const pullback = Math.min(needed, maxPullback);
+      merged[i].end = merged[i].end - pullback;
+      // Negatif süre kontrolü
+      if (merged[i].end <= merged[i].start) {
+        merged[i].end = merged[i].start + Math.min(0.1, currentDuration);
       }
     }
   }
@@ -683,12 +716,19 @@ function extractWordTimestamps(result) {
   const segments = result.transcription || result.segments || [];
 
   for (const seg of segments) {
-    // whisper.cpp verbose_json word_timestamps yanıtı:
-    // segment.words = [{word: " Merhaba", start: 0.5, end: 0.9, probability: 0.98}, ...]
+    // Segment sınırları — güvenilir zaman referansı
+    const segStart = normalizeTime(seg.t0, seg.start);
+    const segEnd = normalizeTime(seg.t1, seg.end);
+    const segDuration = segEnd - segStart;
+    if (segDuration <= 0) continue;
+
+    // whisper.cpp verbose_json: segment.words = token dizisi
+    // [{word: " Merhaba", start: 0.5, end: 0.9, probability: 0.98}, ...]
     const segWords = seg.words || [];
 
     if (segWords.length > 0) {
-      // Word-level timestamps mevcut — kullan
+      // 1. Önce sub-word token'ları birleştirerek segment kelimelerini topla
+      const segCollected = [];
       for (const w of segWords) {
         const text = (w.word || w.text || '').trim();
         if (!text) continue;
@@ -698,33 +738,57 @@ function extractWordTimestamps(result) {
         const wEnd = w.end != null ? w.end :
                      (w.t1 != null ? w.t1 / 100 : wStart + 0.1);
 
-        // Sub-word token kontrolü: boşlukla başlamayan token öncekiyle birleş
+        // Sub-word token kontrolü: whisper.cpp'de kelime sınırı boşlukla başlar.
+        // Boşluksuz başlayan token → sub-word, önceki kelimeyle birleştirilmeli.
         const rawWord = w.word || w.text || '';
-        if (words.length > 0 && rawWord.length > 0 && rawWord[0] !== ' ' && !/^[A-ZÇĞİÖŞÜa-zçğıöşü]/.test(rawWord[0]) === false) {
-          // Eğer önceki kelimenin sonu ile bu kelimenin başı bitişikse birleştir
-          if (rawWord[0] !== ' ' && words.length > 0) {
-            const prev = words[words.length - 1];
-            // Zaman farkı çok küçükse (50ms altı) sub-word token olabilir
-            if (wStart - prev.end < 0.05) {
-              prev.text = prev.text + text;
-              prev.end = wEnd;
-              continue;
-            }
+        const startsWithSpace = rawWord.length > 0 && rawWord[0] === ' ';
+        if (!startsWithSpace && segCollected.length > 0) {
+          const prev = segCollected[segCollected.length - 1];
+          // Zaman farkı 200ms altıysa sub-word token olarak birleştir
+          if (wStart - prev.end < 0.2) {
+            prev.text = prev.text + text;
+            prev.end = wEnd;
+            continue;
           }
         }
 
-        words.push({ text, start: wStart, end: wEnd });
+        segCollected.push({ text, start: wStart, end: wEnd });
       }
+
+      if (segCollected.length === 0) continue;
+
+      // 2. Proportional Distribution: token sürelerini ağırlık olarak kullan
+      // Whisper'ın attention-based token timestamps'ı gürültülü ve boşluklu olabilir.
+      // Segment sınırları (VAD + Whisper main decoder) çok daha güvenilirdir.
+      //
+      // Strateji: Her token'ın orijinal süresini ağırlık olarak kullanıp,
+      // segment süresini orantılı ve boşluksuz dağıtmak.
+      //   - Kelimeler arası gap kalmaz → "önden/arkadan gelme" sorunu çözülür
+      //   - Segment sınırları garantili → kümülatif drift olmaz
+      //   - Orijinal süre oranları korunur → uzun kelime = uzun süre (doğal ritim)
+      const tokenDurations = segCollected.map(w => Math.max(w.end - w.start, 0.01));
+      const totalTokenDuration = tokenDurations.reduce((a, b) => a + b, 0);
+
+      let cursor = segStart;
+      for (let k = 0; k < segCollected.length; k++) {
+        const ratio = tokenDurations[k] / totalTokenDuration;
+        const allocatedDuration = ratio * segDuration;
+        segCollected[k].start = cursor;
+        segCollected[k].end = cursor + allocatedDuration;
+        cursor += allocatedDuration;
+      }
+
+      // Son kelimenin end'ini segment sonuna sabitle (kayan nokta uyumu)
+      segCollected[segCollected.length - 1].end = segEnd;
+
+      words.push(...segCollected);
     } else {
       // Word-level timestamps yok — segment bazlı fallback (eşit dağıtım)
-      const segStart = normalizeTime(seg.t0, seg.start);
-      const segEnd = normalizeTime(seg.t1, seg.end);
       const segText = (seg.text || '').trim();
       if (!segText) continue;
 
       const rawWords = segText.split(/\s+/).filter(Boolean);
-      const segDur = segEnd - segStart;
-      const wordDur = rawWords.length > 0 ? segDur / rawWords.length : segDur;
+      const wordDur = rawWords.length > 0 ? segDuration / rawWords.length : segDuration;
 
       for (let i = 0; i < rawWords.length; i++) {
         words.push({
@@ -739,45 +803,270 @@ function extractWordTimestamps(result) {
   return words;
 }
 
+// ─── Smart Word-by-Word: Temizleme + Akıllı Gruplama ─────────────────────────
+
 /**
- * Word-by-word SRT üretir — her kelime ayrı bir SRT entry.
- * Milisaniye hassasiyetinde ses-altyazı senkronizasyonu.
- * @param {Object} result - whisper-server verbose_json yanıtı (word_timestamps=true)
+ * Word timestamp dizisini temizler:
+ * 1. Tek başına noktalama → önceki kelimeye yapıştır
+ * 2. Cross-segment sub-word birleştirme ("sıkınt" + "ılıyım" → "sıkıntılıyım")
+ * 3. Boş/anlamsız token filtresi
+ * @param {Array<{text: string, start: number, end: number}>} words
+ * @returns {Array<{text: string, start: number, end: number}>}
+ */
+function cleanWordTimestamps(words) {
+  if (words.length === 0) return [];
+
+  // 1. Noktalama yapıştırma: tek başına ".", ",", "!", "?" → önceki kelimeye ekle
+  const punctCleaned = [];
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    const textClean = w.text.replace(/\s/g, '');
+
+    if (/^[.,!?…;:]+$/.test(textClean)) {
+      if (punctCleaned.length > 0) {
+        const prev = punctCleaned[punctCleaned.length - 1];
+        prev.text = prev.text + textClean;
+        prev.end = Math.max(prev.end, w.end);
+      }
+      continue;
+    }
+
+    punctCleaned.push({ ...w });
+  }
+
+  // 2. Cross-segment sub-word birleştirme
+  // "sıkınt" + "ılıyım" gibi segment sınırında bölünen kelimeleri yakalar.
+  // İki tespit yöntemi:
+  //   a) Güçlü sinyal: "ı" ile başlayan token — Türkçe'de çok nadir kelime başı
+  //      (sadece ısı, ıslak, ılık, ırmak, ışık ve türevleri)
+  //   b) Yapısal sinyal: önceki kelime ünsüz kümesiyle bitiyor + sonraki ünlüyle başlıyor
+  //      ("sıkınt" → "nt" ünsüz kümesi + "ılıyım" → "ı" ünlü)
+  const TR_VOWELS = 'aeıioöuüAEIİOÖUÜ';
+  const TR_CONSONANTS = 'bcçdfgğhjklmnprsştvyzBCÇDFGĞHJKLMNPRSŞTVYZ';
+
+  const merged = [];
+  for (let i = 0; i < punctCleaned.length; i++) {
+    const curr = punctCleaned[i];
+
+    if (merged.length > 0) {
+      const prev = merged[merged.length - 1];
+      const prevEndsClean = !(/[.?!…,;:]$/.test(prev.text));
+
+      if (prevEndsClean) {
+        // a) "ı" ile başlayan token — çok güçlü sub-word sinyali
+        const startsWithRareInitial = curr.text.length > 0 && curr.text[0] === 'ı';
+
+        // b) Önceki kelime ünsüz kümesiyle bitiyor + sonraki ünlüyle başlıyor
+        const prevClean = prev.text.replace(/[.,?!…;:]+$/, '');
+        const endsWithConsonantCluster = prevClean.length >= 2 &&
+          TR_CONSONANTS.includes(prevClean[prevClean.length - 1]) &&
+          TR_CONSONANTS.includes(prevClean[prevClean.length - 2]);
+        const startsWithVowel = curr.text.length > 0 && TR_VOWELS.includes(curr.text[0]);
+        const isSubwordByStructure = endsWithConsonantCluster && startsWithVowel;
+
+        if (startsWithRareInitial || isSubwordByStructure) {
+          // Birleştirmede aradaki sessizlik gap'ini çıkar — sadece konuşma sürelerini topla
+          // "sıkınt" (0.84s) + "ılıyım" (0.87s) → 1.71s (gap dahil 2.32s değil)
+          const prevDuration = prev.end - prev.start;
+          const currDuration = curr.end - curr.start;
+          prev.text = prevClean + curr.text;
+          prev.end = prev.start + prevDuration + currDuration;
+          continue;
+        }
+      }
+    }
+
+    merged.push({ ...curr });
+  }
+
+  // 3. Boş token filtresi
+  return merged.filter(w => w.text.trim().length > 0);
+}
+
+/**
+ * Temizlenmiş word dizisini akıllıca gruplar.
+ * Remotion'un combineTokensWithinMilliseconds yaklaşımı + Türkçe dilbilgisi kuralları.
+ *
+ * Zorunlu birleştirme: edat, yrd. fiil, geriye bağlanan parçacıklar, ≤2 char kelime
+ * Opsiyonel birleştirme: ileriye bağlanan kelimeler, 300ms zaman eşiği dahilindekiler
+ * Limitler: max 3 kelime/grup, max 25 karakter/grup, 500ms+ gap → yeni grup
+ *
+ * @param {Array<{text: string, start: number, end: number}>} words
+ * @returns {Array<{text: string, start: number, end: number}>}
+ */
+function groupSmartWords(words) {
+  if (words.length === 0) return [];
+
+  const MAX_GROUP_WORDS = 3;
+  const MAX_GROUP_CHARS = 25;
+  const COMBINE_THRESHOLD = 0.3; // 300ms — Remotion tarzı zaman eşiği
+  const PAUSE_THRESHOLD = 0.5;   // 500ms — zorla yeni grup
+
+  const groups = [];
+  let currentGroup = [];
+
+  function flushGroup() {
+    if (currentGroup.length === 0) return;
+    groups.push({
+      text: currentGroup.map(w => w.text).join(' '),
+      start: currentGroup[0].start,
+      end: currentGroup[currentGroup.length - 1].end,
+    });
+    currentGroup = [];
+  }
+
+  function currentText() {
+    return currentGroup.map(w => w.text).join(' ');
+  }
+
+  function cleanLower(text) {
+    return (text || '').replace(/[.,?!…;:]+$/, '').toLowerCase();
+  }
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+
+    if (currentGroup.length === 0) {
+      currentGroup.push(word);
+      continue;
+    }
+
+    const lastInGroup = currentGroup[currentGroup.length - 1];
+    const gap = word.start - lastInGroup.end;
+    const prospectiveText = currentText() + ' ' + word.text;
+    const cleanWord = cleanLower(word.text);
+    const cleanLast = cleanLower(lastInGroup.text);
+
+    // ─── Zorla YENİ GRUP: doğal duraklama (500ms+) ───
+    if (gap >= PAUSE_THRESHOLD) {
+      flushGroup();
+      currentGroup.push(word);
+      continue;
+    }
+
+    // ─── Zorla YENİ GRUP: cümle sonu ───
+    // Gruptaki son kelime cümle sonuyla bittiyse yeni grup başlat
+    if (/[.?!…]$/.test(lastInGroup.text) && !isAbbreviation(lastInGroup.text)) {
+      flushGroup();
+      currentGroup.push(word);
+      continue;
+    }
+
+    // ─── Zorla BİRLEŞTİR: dilbilgisi kuralları ───
+    let forceMerge = false;
+
+    // Edat: önceki kelimeden asla ayrılmaz ("O kadar", "bunun için")
+    if (POSTPOSITIONS.has(cleanWord)) forceMerge = true;
+    // Yardımcı fiil: önceki isimden asla ayrılmaz ("yardım etti")
+    if (AUXILIARY_VERBS.has(cleanWord)) forceMerge = true;
+    // Geriye bağlanan parçacıklar ("var mı", "güzel de")
+    if (BACKWARD_BINDING.has(cleanWord)) forceMerge = true;
+    // ≤2 karakter kelime tek başına bırakma
+    if (word.text.replace(/[.,?!…;:]+$/, '').length <= 2) forceMerge = true;
+
+    if (forceMerge) {
+      // Dilbilgisi kuralları için limiti 4 kelimeye kadar esnet
+      if (currentGroup.length < MAX_GROUP_WORDS + 1) {
+        currentGroup.push(word);
+      } else {
+        flushGroup();
+        currentGroup.push(word);
+      }
+      continue;
+    }
+
+    // ─── Opsiyonel BİRLEŞTİR ───
+    let shouldMerge = false;
+
+    // Önceki kelime ileriye bağlanan ise ("bir taş", "çok güzel", "en iyi")
+    if (FORWARD_BINDING.has(cleanLast) && currentGroup.length < MAX_GROUP_WORDS) {
+      shouldMerge = true;
+    }
+    // Zaman eşiği dahilinde + karakter/kelime limitleri uygun
+    else if (gap < COMBINE_THRESHOLD &&
+             prospectiveText.length <= MAX_GROUP_CHARS &&
+             currentGroup.length < MAX_GROUP_WORDS) {
+      shouldMerge = true;
+    }
+
+    if (shouldMerge) {
+      currentGroup.push(word);
+    } else {
+      // Flush öncesi: son kelime ileriye bağlanan ise, onu yeni gruba taşı
+      // ("Artık iyi bir" → flush "Artık iyi", yeni grup "bir şey" olur)
+      if (FORWARD_BINDING.has(cleanLast) && currentGroup.length > 1) {
+        currentGroup.pop();
+        flushGroup();
+        currentGroup.push(lastInGroup);
+        currentGroup.push(word);
+      } else {
+        flushGroup();
+        currentGroup.push(word);
+      }
+    }
+  }
+
+  flushGroup();
+  return groups;
+}
+
+/**
+ * Smart Word-by-Word SRT üretir.
+ * Akıllı gruplama ile 1-3 kelimelik altyazı blokları oluşturur.
+ * @param {Object} result - whisper-server verbose_json yanıtı
  * @returns {string} SRT formatında metin
  */
 function generateWordByWordSRT(result) {
-  const words = extractWordTimestamps(result);
-  if (words.length === 0) return '';
+  const rawWords = extractWordTimestamps(result);
+  if (rawWords.length === 0) return '';
 
-  // Halüsinasyon temizleme: ardışık aynı kelime tekrarlarını sil
-  const cleaned = [];
+  // 1. Halüsinasyon temizleme: ardışık aynı kelime tekrarlarını sil
+  const deduped = [];
   let repeatCount = 0;
-  for (let i = 0; i < words.length; i++) {
-    const curr = words[i].text.toLowerCase();
-    const prev = i > 0 ? words[i - 1].text.toLowerCase() : '';
+  for (let i = 0; i < rawWords.length; i++) {
+    const curr = rawWords[i].text.toLowerCase();
+    const prev = i > 0 ? rawWords[i - 1].text.toLowerCase() : '';
     if (curr === prev) {
       repeatCount++;
-      if (repeatCount >= 2) continue; // 3+ ardışık aynı kelime → sil
+      if (repeatCount >= 2) continue;
     } else {
       repeatCount = 0;
     }
-    cleaned.push(words[i]);
+    deduped.push(rawWords[i]);
   }
 
-  // Minimum süre kontrolü: çok kısa kelimeleri genişlet (min 100ms)
-  for (const w of cleaned) {
-    if (w.end - w.start < 0.1) {
-      w.end = w.start + 0.1;
+  // 2. Temizleme: noktalama yapıştırma + sub-word birleştirme + artifact filtre
+  const cleaned = cleanWordTimestamps(deduped);
+
+  // 3. Akıllı gruplama: Türkçe dilbilgisi + zaman bazlı
+  const groups = groupSmartWords(cleaned);
+
+  // 4. Minimum süre kontrolü + overlap giderme
+  for (let i = 0; i < groups.length; i++) {
+    const g = groups[i];
+    if (g.end - g.start < 0.1) {
+      const nextStart = (i + 1 < groups.length) ? groups[i + 1].start : Infinity;
+      g.end = Math.min(g.start + 0.1, nextStart);
+      if (g.end - g.start < 0.05 && i > 0) {
+        const prevEnd = groups[i - 1].end;
+        g.start = Math.max(g.end - 0.1, prevEnd);
+      }
     }
   }
 
-  // SRT formatına dönüştür
+  for (let i = 0; i < groups.length - 1; i++) {
+    if (groups[i].end > groups[i + 1].start) {
+      groups[i].end = groups[i + 1].start;
+    }
+  }
+
+  // 5. SRT formatına dönüştür
   const lines = [];
-  for (let i = 0; i < cleaned.length; i++) {
-    const w = cleaned[i];
+  for (let i = 0; i < groups.length; i++) {
+    const g = groups[i];
     lines.push(String(i + 1));
-    lines.push(formatTimestamp(w.start) + ' --> ' + formatTimestamp(w.end));
-    lines.push(w.text);
+    lines.push(formatTimestamp(g.start) + ' --> ' + formatTimestamp(g.end));
+    lines.push(g.text);
     lines.push('');
   }
 
