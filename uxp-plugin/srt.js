@@ -6,9 +6,9 @@
 const SRT_CONFIG = {
   maxCharsPerLine: 42,
   maxLines: 2,
-  minDuration: 1.0,
+  minDuration: 0.7,
   maxDuration: 7.0,
-  gapBetweenSubs: 0.1,
+  gapBetweenSubs: 0.083,
   // v2 eklemeleri
   targetCPS: 17,
   maxCPS: 20,
@@ -216,7 +216,8 @@ function mergeFragmentedWords(segments) {
 
 /**
  * Tüm segmentlerden düz word listesi çıkarır.
- * v3: Karakter uzunluğuna orantılı dağıtım — kısa kelimeler kısa süre, uzun kelimeler uzun süre alır.
+ * v4: Segment'te word-level timestamps (DTW/VAD-mapped) varsa GERÇEK zamanlamaları kullanır.
+ *     Yoksa karakter-orantılı dağıtıma fallback eder.
  * Segment sınırı korunur, segmentId taşınır.
  */
 function extractWords(segments) {
@@ -230,11 +231,87 @@ function extractWords(segments) {
     const text = (seg.text || "").trim();
     if (!text || segDuration <= 0) continue;
 
+    // ── Gerçek word timestamps varsa kullan (DTW/VAD-mapped) ──
+    if (seg.words && seg.words.length > 0) {
+      const segCollected = [];
+
+      for (const w of seg.words) {
+        const wText = (w.word || w.text || '').trim();
+        if (!wText) continue;
+
+        let wStart = w.start != null ? w.start :
+                     (w.t0 != null ? w.t0 / 100 : 0);
+        let wEnd = w.end != null ? w.end :
+                   (w.t1 != null ? w.t1 / 100 : wStart + 0.1);
+
+        // DTW zamanlaması: t_dtw ≥ 0 ise DTW aktif, server tarafında VAD-mapped centisaniye
+        const hasDTW = w.t_dtw != null && w.t_dtw >= 0;
+        const dtwOnset = hasDTW ? w.t_dtw / 100 : -1;
+
+        // Sub-word token kontrolü: boşluksuz başlayan → önceki kelimeyle birleştir
+        const rawWord = w.word || w.text || '';
+        const startsWithSpace = rawWord.length > 0 && rawWord[0] === ' ';
+        if (!startsWithSpace && segCollected.length > 0) {
+          const prev = segCollected[segCollected.length - 1];
+          if (wStart - prev.end < 0.2) {
+            prev.text = prev.text + wText;
+            prev.end = wEnd;
+            continue;
+          }
+        }
+
+        segCollected.push({
+          text: wText,
+          start: hasDTW ? dtwOnset : wStart,
+          end: wEnd,
+          hasDTW,
+          dtwOnset,
+        });
+      }
+
+      if (segCollected.length === 0) {
+        // words dizisi boş çıktı — fallback'e düş (aşağıda)
+      } else {
+        // DTW onset tabanlı end zamanlama: ardışık onset'lerden sınır oluştur
+        for (let k = 0; k < segCollected.length; k++) {
+          const curr = segCollected[k];
+          if (curr.hasDTW && k + 1 < segCollected.length && segCollected[k + 1].hasDTW) {
+            curr.end = segCollected[k + 1].dtwOnset;
+          }
+          // Minimum kelime süresi: 50ms
+          if (curr.end - curr.start < 0.05) {
+            curr.end = curr.start + 0.05;
+          }
+          // Segment sınırı clamp
+          curr.start = Math.max(segStart, Math.min(curr.start, segEnd));
+          curr.end = Math.max(curr.start, Math.min(curr.end, segEnd));
+        }
+
+        // Overlap çözümleme: midpoint split
+        for (let k = 0; k < segCollected.length - 1; k++) {
+          if (segCollected[k].end > segCollected[k + 1].start) {
+            const mid = (segCollected[k].end + segCollected[k + 1].start) / 2;
+            segCollected[k].end = mid;
+            segCollected[k + 1].start = mid;
+          }
+        }
+
+        for (const w of segCollected) {
+          allWords.push({
+            text: w.text,
+            start: w.start,
+            end: w.end,
+            segmentId: segIdx,
+          });
+        }
+        continue; // Bu segment tamamlandı, fallback'e düşme
+      }
+    }
+
+    // ── Fallback: word timestamps yoksa karakter-orantılı dağıtım ──
     const rawWords = text.split(/\s+/).filter(Boolean);
     if (rawWords.length === 0) continue;
 
-    // Karakter uzunluğuna orantılı dağıtım
-    // Her kelime en az 1 karakter ağırlığında (boşlukları saymıyoruz)
     const charWeights = rawWords.map(w => Math.max(w.length, 1));
     const totalWeight = charWeights.reduce((sum, w) => sum + w, 0);
 
@@ -250,6 +327,35 @@ function extractWords(segments) {
         end: wEnd,
         segmentId: segIdx,
       });
+    }
+  }
+
+  // ── Segment-arası sub-word birleştirme ──
+  // Whisper bazen kelimeleri segment sınırında böler: "uyard" | "ım."
+  // İlk kelime boşluksuz başlıyorsa (raw token'da) ve önceki kelime noktalama ile bitmiyorsa → birleştir.
+  // extractWords raw token bilgisini taşımadığı için basit heuristik:
+  // Segment sınırında, sonraki segmentin ilk kelimesi küçük harfle başlıyorsa ve ≤3 char ise → birleştir.
+  const TR_VOWELS = 'aeıioöuüAEIİOÖUÜ';
+  const TR_CONSONANTS = 'bcçdfgğhjklmnprsştvyzBCÇDFGĞHJKLMNPRSŞTVYZ';
+  for (let i = 1; i < allWords.length; i++) {
+    if (allWords[i].segmentId !== allWords[i - 1].segmentId) {
+      const prev = allWords[i - 1];
+      const curr = allWords[i];
+      const prevClean = prev.text.replace(/[.,?!…;:]+$/, '');
+      // Önceki kelime noktalama ile bitiyorsa birleştirme
+      if (/[.?!…]$/.test(prev.text)) continue;
+      // Sonraki kelime küçük harfle veya ünlüyle başlıyor + kısa (≤4 char, noktalama hariç)
+      const currClean = curr.text.replace(/[.,?!…;:]+$/, '');
+      const firstChar = currClean[0] || '';
+      const endsWithConsonant = prevClean.length > 0 && TR_CONSONANTS.includes(prevClean[prevClean.length - 1]);
+      const startsWithVowel = TR_VOWELS.includes(firstChar);
+      const isShortSuffix = currClean.length <= 4 && firstChar === firstChar.toLowerCase() && firstChar !== firstChar.toUpperCase();
+      if (isShortSuffix && endsWithConsonant && startsWithVowel) {
+        prev.text = prevClean + curr.text;
+        prev.end = curr.end;
+        allWords.splice(i, 1);
+        i--;
+      }
     }
   }
 
@@ -497,19 +603,8 @@ function groupWordsIntoSubtitles(words) {
     const word = words[i];
     const nextWord = i + 1 < words.length ? words[i + 1] : null;
 
-    // CPS pre-check: kelimeyi eklemeden ÖNCE CPS kontrol et
-    if (currentWords.length > 0) {
-      const prospectiveText = currentWords.map(w => w.text).join(' ') + ' ' + word.text;
-      const prospectiveStart = currentWords[0].start;
-      const prospectiveEnd = word.end;
-      const prospectiveDuration = prospectiveEnd - prospectiveStart;
-      if (prospectiveDuration > 0) {
-        const prospectiveCPS = prospectiveText.length / prospectiveDuration;
-        if (prospectiveCPS > SRT_CONFIG.maxCPS) {
-          flushSubtitle(false); // Önce mevcut bloğu kapat
-        }
-      }
-    }
+    // CPS pre-check kaldırıldı (v5) — DTW zamanlamalarıyla uyumsuzdu, mikro-fragmantasyona
+    // neden oluyordu. CPS kontrolü artık sadece post-process'te yapılır.
 
     currentWords.push(word);
 
@@ -581,37 +676,55 @@ function groupWordsIntoSubtitles(words) {
   // Kalan kelimeleri flush et
   flushSubtitle(false);
 
-  // Post-process: CPS kontrolü — >20 CPS olan blokları böl
+  // 0-süre düzeltme: DTW'nin aynı onset verdiği çok kısa kelimeler
+  for (const sub of subtitles) {
+    if (sub.end - sub.start < 0.05) {
+      sub.end = sub.start + 0.2;
+    }
+  }
+
+  // Post-process: CPS kontrolü — >20 CPS ve ≥4 kelimelik blokları cümle sınırında böl
   const cpsChecked = [];
   for (const sub of subtitles) {
     const duration = sub.end - sub.start;
     const plainText = sub.text.replace(/\n/g, ' ');
     const { status } = calculateCPS(plainText, duration);
+    const allBlockWords = plainText.split(/\s+/);
 
-    if (status === 'error' && plainText.split(/\s+/).length >= 2) {
-      // CPS çok yüksek — bloğu ikiye böl
-      const allWords = plainText.split(/\s+/);
-      const midIdx = Math.floor(allWords.length / 2);
-      const firstHalf = allWords.slice(0, midIdx).join(' ');
-      const secondHalf = allWords.slice(midIdx).join(' ');
-      const midTime = sub.start + (duration * midIdx / allWords.length);
+    if (status === 'error' && allBlockWords.length >= 4) {
+      // Cümle sonu sınırında en iyi bölme noktasını bul
+      let bestSplitIdx = -1;
+      let bestScore = Infinity;
 
-      cpsChecked.push({
-        start: sub.start,
-        end: midTime,
-        text: splitIntoLines(firstHalf)
-      });
-      cpsChecked.push({
-        start: midTime,
-        end: sub.end,
-        text: splitIntoLines(secondHalf)
-      });
-    } else {
-      cpsChecked.push(sub);
+      for (let j = 1; j < allBlockWords.length - 1; j++) {
+        if (/[.?!…]$/.test(allBlockWords[j])) {
+          const h1 = allBlockWords.slice(0, j + 1).join(' ');
+          const h2 = allBlockWords.slice(j + 1).join(' ');
+          const ratio = (j + 1) / allBlockWords.length;
+          const midT = sub.start + duration * ratio;
+          const cps1 = h1.length / Math.max(midT - sub.start, 0.05);
+          const cps2 = h2.length / Math.max(sub.end - midT, 0.05);
+          const score = Math.max(cps1, cps2);
+          if (score < bestScore) { bestScore = score; bestSplitIdx = j; }
+        }
+      }
+
+      if (bestSplitIdx >= 0) {
+        const h1 = allBlockWords.slice(0, bestSplitIdx + 1).join(' ');
+        const h2 = allBlockWords.slice(bestSplitIdx + 1).join(' ');
+        const ratio = (bestSplitIdx + 1) / allBlockWords.length;
+        const midT = sub.start + duration * ratio;
+        cpsChecked.push({ start: sub.start, end: midT, text: splitIntoLines(h1) });
+        cpsChecked.push({ start: midT, end: sub.end, text: splitIntoLines(h2) });
+        continue;
+      }
     }
+
+    cpsChecked.push(sub);
   }
 
-  // Post-process: minimum süre kontrolü — çok kısa altyazıları birleştir
+  // Post-process: akıllı minimum süre birleştirme
+  // Sadece kurallar uygunsa merge et: CPS ≤ 25, chars ≤ 84, gap < 500ms
   const merged = [];
   for (let i = 0; i < cpsChecked.length; i++) {
     const sub = cpsChecked[i];
@@ -622,8 +735,14 @@ function groupWordsIntoSubtitles(words) {
       const prevPlain = prev.text.replace(/\n/g, ' ');
       const subPlain = sub.text.replace(/\n/g, ' ');
       const combinedPlain = prevPlain + ' ' + subPlain;
+      const combinedDuration = sub.end - prev.start;
+      const gap = sub.start - prev.end;
+      const combinedCPS = combinedDuration > 0 ? combinedPlain.length / combinedDuration : 999;
 
-      if ((sub.end - prev.start) <= SRT_CONFIG.maxDuration) {
+      if (combinedDuration <= SRT_CONFIG.maxDuration &&
+          combinedPlain.length <= MAX_CHARS_PER_BLOCK &&
+          combinedCPS <= 25 &&
+          gap < 0.5) {
         prev.end = sub.end;
         prev.text = splitIntoLines(combinedPlain);
         continue;
@@ -634,22 +753,27 @@ function groupWordsIntoSubtitles(words) {
   }
 
   // Gap ekleme — altyazılar arası minimum boşluk garantisi
-  // Strateji: bitiş zamanını konuşma bitişinden çok geri çekmeden,
-  // minimum gap sağla. Drift'i önlemek için orijinal bitiş zamanını mümkün olduğunca koru.
+  // Strateji: sadece gereken kadar geri çek, overlap varsa midpoint split.
+  // Gerçek DTW zamanlamaları kullanıldığında drift minimal olur.
   for (let i = 0; i < merged.length - 1; i++) {
     const gap = merged[i + 1].start - merged[i].end;
     if (gap < SRT_CONFIG.gapBetweenSubs) {
-      // Gereken ek boşluk
-      const needed = SRT_CONFIG.gapBetweenSubs - gap;
-      // Boşluğu yarı yarıya paylaştır: mevcut bloğun end'ini geri çek + sonrakinin start'ından sonra başlat
-      // Ama blok süresini %20'den fazla kısaltma (drift'i önle)
-      const currentDuration = merged[i].end - merged[i].start;
-      const maxPullback = currentDuration * 0.2; // Sürenin en fazla %20'si kadar geri çek
-      const pullback = Math.min(needed, maxPullback);
-      merged[i].end = merged[i].end - pullback;
-      // Negatif süre kontrolü
-      if (merged[i].end <= merged[i].start) {
-        merged[i].end = merged[i].start + Math.min(0.1, currentDuration);
+      if (gap < 0) {
+        // Overlap — midpoint split
+        const mid = (merged[i].end + merged[i + 1].start) / 2;
+        merged[i].end = mid;
+        merged[i + 1].start = mid;
+      } else {
+        // Küçük gap — sadece mevcut bloğun end'ini gereken kadar geri çek
+        const needed = SRT_CONFIG.gapBetweenSubs - gap;
+        const currentDuration = merged[i].end - merged[i].start;
+        // En fazla 100ms geri çek — drift'i önle
+        const pullback = Math.min(needed, 0.1);
+        merged[i].end = merged[i].end - pullback;
+        // Minimum süre koruması
+        if (merged[i].end <= merged[i].start) {
+          merged[i].end = merged[i].start + Math.min(0.1, currentDuration);
+        }
       }
     }
   }
